@@ -70,6 +70,80 @@ def queued(song, author, query, now_playing=False):
     return embed
 
 
+def playlist(playlist, author, link):
+    embed = Embed(
+        title=playlist['title'],
+        url=link,
+        description=f'Added by {author}.',
+        colour=Colour.teal(),
+        timestamp=datetime.now()
+    )
+    embed.set_author(
+        name='Playlist',
+        icon_url='https://www.youtube.com/s/desktop/066935b0/img/favicon_32x32.png'
+    )
+    embed.set_thumbnail(url=playlist['thumbnails'][0]['url'])
+    embed.add_field(
+        name='Creator',
+        value=playlist['uploader'],
+        inline=True
+    )
+    embed.add_field(
+        name='Availability',
+        value=playlist['availability'].title(),
+        inline=True
+    )
+    embed.add_field(
+        name='Playlist Items',
+        value=playlist['playlist_count'],
+        inline=True
+    )
+    embed.set_footer(text=random_footer())
+    return embed
+
+
+def playlist_finished(playlist, success, skipped, author, link):
+    embed = Embed(
+        title=playlist['title'],
+        url=link,
+        description=f'Added by {author}, ',
+        colour=Colour.teal(),
+        timestamp=datetime.now()
+    )
+    embed.set_author(
+        name='Finished Downloading Playlist',
+        icon_url='https://www.youtube.com/s/desktop/066935b0/img/favicon_32x32.png'
+    )
+    embed.set_thumbnail(url=playlist['thumbnails'][0]['url'])
+    embed.add_field(
+        name='Creator',
+        value=playlist['uploader'],
+        inline=True
+    )
+    embed.add_field(
+        name='Availability',
+        value=playlist['availability'].title(),
+        inline=True
+    )
+    embed.add_field(
+        name='Playlist Items',
+        value=playlist['playlist_count'],
+        inline=True
+    )
+    embed.add_field(
+        name='Added Items',
+        value=success,
+        inline=True
+    )
+    embed.add_field(
+        name='Skipped Items',
+        value=skipped,
+        inline=True
+    )
+    embed.set_footer(text=random_footer())
+    return embed
+
+
 def now_playing(song):
     embed = Embed(
         title=song.title,
@@ -110,6 +184,8 @@ def queue(now_playing, queue):
     songs = [f'1) [{now_playing.title}]({now_playing.url}) [{now_playing.duration}]']
     for n, song in enumerate(queue[:19], start=2):
         songs.append(f'{n}) [{song.title}]({song.url}) [{song.duration}]')
+    if len(queue) > 20:
+        songs.append(f'\n{len(queue)} total songs queued.')
     embed = Embed(
         title='Queue',
         description='\n'.join(songs),

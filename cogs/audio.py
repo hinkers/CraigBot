@@ -51,26 +51,61 @@ class AudioCog(commands.Cog):
         """ Play a youtube music video in a voice channel. """
         await ctx.typing()
 
-        source = await YTDLSource.from_youtube(query)
-        if source is False:
+        info = await YTDLSource.get_info(query)
+        if not info['is_playlist'] and info['duration'] > 900:
+            await ctx.send(f'Large download detected, this file will be queued as soon as it is finished downloading.')
+        
+        if info['is_playlist']:
+            source = await YTDLSource.download(info['entries'][0]['url'])
+        else:
+            source = await YTDLSource.download(info)
+        if source is None:
             await ctx.send(f'Failed to download audio track.')
             return
-        elif source is None:
-            await ctx.send(f'Large download detected, this file will be queued as soon as it is finished downloading.')
-            source = await YTDLSource.from_youtube(query, long_running=True)
 
         audioplayer = self.bot.get_audioplayer(ctx.voice_client)
         audioplayer.add_song(source)
 
-        await ctx.send(
-            embed=embedded_messages.queued(
-                source,
-                ctx.author.mention,
-                query,
-                not audioplayer.is_playing
+        if not info['is_playlist']:
+            await ctx.send(
+                embed=embedded_messages.queued(
+                    source,
+                    ctx.author.mention,
+                    query,
+                    not audioplayer.is_playing
+                )
             )
-        )
-        audioplayer.play()
+            audioplayer.play()
+        else:
+            await ctx.send(
+                embed=embedded_messages.playlist(
+                    info,
+                    ctx.author.mention,
+                    query
+                )
+            )
+            audioplayer.play()
+
+            success = 0
+            skipped = 0
+            for song in info['entries'][1::]:
+                source = await YTDLSource.download(song['url'])
+                if source is not None:
+                    audioplayer.add_song(source)
+                    skipped += 1
+                success += 1
+            print(success, skipped)
+            success -= skipped
+            print(success, skipped)
+            await ctx.send(
+                embed=embedded_messages.playlist_finished(
+                    info,
+                    success,
+                    skipped,
+                    ctx.author.mention,
+                    query
+                )
+            )
 
     @commands.hybrid_command()
     async def np(self, ctx: commands.context):
