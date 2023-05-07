@@ -51,8 +51,8 @@ class YTDLSource(discord.PCMVolumeTransformer):
         self.likes = data.get('like_count')
 
     @classmethod
-    async def from_youtube(cls, query, *, loop=None):
-        loop = loop or asyncio.get_event_loop()
+    async def from_youtube(cls, query, long_running=False):
+        loop = asyncio.get_event_loop()
         is_search = False
         youtube_pattern = r"^(https?\:\/\/)?(www\.)?(youtube\.com|youtu\.?be)\/.+$"
         if not bool(re.match(youtube_pattern, query)):
@@ -62,12 +62,14 @@ class YTDLSource(discord.PCMVolumeTransformer):
         try:
             data = await loop.run_in_executor(None, lambda: ytdl.extract_info(query, download=False))
         except youtube_dl.utils.DownloadError:
-            return None
+            return False
         if 'entries' in data:
             data = data['entries'][0]
         filename = ytdl.prepare_filename(data)
 
         if not os.path.exists(filename):
+            if not long_running and data['duration'] > 900:
+                return None
             await loop.run_in_executor(None, lambda: ytdl.extract_info(query, download=True))
             if data['duration'] <= 600:
                 equalise_loudness(filename)

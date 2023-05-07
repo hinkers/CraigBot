@@ -52,9 +52,12 @@ class AudioCog(commands.Cog):
         await ctx.typing()
 
         source = await YTDLSource.from_youtube(query)
-        if source is None:
+        if source is False:
             await ctx.send(f'Failed to download audio track.')
             return
+        elif source is None:
+            await ctx.send(f'Large download detected, this file will be queued as soon as it is finished downloading.')
+            source = await YTDLSource.from_youtube(query, long_running=True)
 
         audioplayer = self.bot.get_audioplayer(ctx.voice_client)
         audioplayer.add_song(source)
