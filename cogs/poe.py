@@ -60,7 +60,7 @@ class PoeCog(commands.Cog):
             return ''
 
     @commands.hybrid_command()
-    async def poe(self, ctx: commands.context, query: str):
+    async def poe(self, ctx: commands.context, *, query: str):
         """ Search for what diviation cards will drop on a map or what maps a divication card will drop on. """
         await ctx.typing(ephemeral=True)
         await self.poe_get_csv_data()

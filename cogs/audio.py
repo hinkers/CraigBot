@@ -47,7 +47,7 @@ class AudioCog(commands.Cog):
         await ctx.send('Skipped.')
 
     @commands.hybrid_command()
-    async def play(self, ctx: commands.context, query: str):
+    async def play(self, ctx: commands.context, *, query: str):
         """ Play a youtube music video in a voice channel. """
         await ctx.typing()
 

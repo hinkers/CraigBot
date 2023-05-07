@@ -1,7 +1,9 @@
 from datetime import datetime
-
-from discord import Colour, Embed
 from random import SystemRandom
+
+import discord
+from discord import Colour, Embed
+
 from quotes import quotes
 
 random = SystemRandom()
@@ -116,3 +118,16 @@ def queue(now_playing, queue):
     )
     embed.set_footer(text=random_footer())
     return embed
+
+
+def magic_8_ball(author, question, answer):
+    embed = Embed(
+            title='Magic 8 Ball',
+            color=0x0b0d5e,
+    )
+    embed.add_field(name=f"{author} asks", value=question, inline=False)
+    embed.add_field(name="Answer", value=answer, inline=False)
+    embed.set_thumbnail(url="attachment://8ball.png")
+    embed.set_footer(text=random_footer())
+    image = discord.File("data/images/8ball.png", filename="8ball.png")
+    return dict(file=image, embed=embed)
