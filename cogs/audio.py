@@ -1,3 +1,5 @@
+import asyncio
+import threading
 import discord
 from discord.ext import commands
 
@@ -86,26 +88,29 @@ class AudioCog(commands.Cog):
             )
             audioplayer.play()
 
-            success = 0
-            skipped = 0
-            for song in info['entries'][1::]:
-                source = await YTDLSource.download(song['url'])
-                if source is not None:
-                    audioplayer.add_song(source)
-                    skipped += 1
-                success += 1
-            print(success, skipped)
-            success -= skipped
-            print(success, skipped)
-            await ctx.send(
-                embed=embedded_messages.playlist_finished(
-                    info,
-                    success,
-                    skipped,
-                    ctx.author.mention,
-                    query
-                )
-            )
+            # async def download_pl():
+            #     success = 0
+            #     skipped = 0
+            #     for song in info['entries'][1::]:
+            #         source = await YTDLSource.download(song['url'])
+            #         if source is not None:
+            #             audioplayer.add_song(source)
+            #             skipped += 1
+            #         success += 1
+            #     print(success, skipped)
+            #     success -= skipped
+            #     print(success, skipped)
+            #     await ctx.send(
+            #         embed=embedded_messages.playlist_finished(
+            #             info,
+            #             success,
+            #             skipped,
+            #             ctx.author.mention,
+            #             query
+            #         )
+            #     )
+            # loop = asyncio.get_event_loop()
+            # task = loop.create_task(download_pl())
 
     @commands.hybrid_command()
     async def np(self, ctx: commands.context):

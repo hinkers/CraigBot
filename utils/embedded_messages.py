@@ -74,7 +74,7 @@ def playlist(playlist, author, link):
     embed = Embed(
         title=playlist['title'],
         url=link,
-        description=f'Added by {author}.',
+        description=f'Added by {author}, items will downloaded in the background and be added to the queue as they finish.',
         colour=Colour.teal(),
         timestamp=datetime.now()
     )

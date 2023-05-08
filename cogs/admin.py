@@ -8,6 +8,11 @@ class AdminCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
+    @commands.hybrid_command(name="ping")
+    async def ping_command(self, ctx: commands.Context) -> None:
+        """ Responds pong. """
+        await ctx.send("pong", ephemeral=True)
+
     @commands.command()
     @commands.guild_only()
     @commands.is_owner()
@@ -38,11 +43,6 @@ class AdminCog(commands.Cog):
             else:
                 ret += 1
         await ctx.send(f"Synced the tree to {ret}/{len(guilds)}.")
-
-    @commands.hybrid_command(name="ping")
-    async def ping_command(self, ctx: commands.Context) -> None:
-        """ Responds pong. """
-        await ctx.send("pong", ephemeral=True)
 
 
 async def setup(bot):

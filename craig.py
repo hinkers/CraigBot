@@ -1,3 +1,5 @@
+import glob
+import math
 import os
 from random import SystemRandom
 
@@ -18,6 +20,7 @@ class CraigBot(commands.Bot):
         super().__init__(command_prefix, intents=intents)
         self.audioplayers = dict()
         self.random = SystemRandom()
+        self.coggers = []
     
     def get_audioplayer(self, voice_client):
         try:
@@ -32,17 +35,24 @@ class CraigBot(commands.Bot):
         except KeyError:
             pass
 
-    async def load_extension(self, *names):
-        print('Loading cogs:')
+    async def load_extensions(self):
         loaded = 0
-        for name in names:
+        all_files = glob.glob(os.path.join('cogs', '*.py'))
+        all_files.sort()
+        print(f'Found {len(all_files)} cogs:')
+        for file in all_files:
+            name = file.replace('/', '.')[:-3]
             try:
-                await super().load_extension(name)
+                await self.load_extension(name)
+                self.coggers.append((name, list(self.cogs.values())[-1].qualified_name))
                 loaded += 1
                 print(f'└──►Loaded: `{name}`')
             except Exception:
                 print(f'└──►Failed: `{name}`')
-        print(f'Loaded {loaded}/{len(names)} cogs.')
+        print(f'Loaded {loaded}/{len(all_files)} cogs.')
+    
+    async def setup_hook(self):
+        await self.load_extensions()
 
 
 intents = discord.Intents.default()
@@ -52,9 +62,11 @@ client = CraigBot(command_prefix='!', intents=intents)
 
 @client.event
 async def on_ready():
-    await client.load_extension("cogs.admin", "cogs.audio", "cogs.fun", "cogs.poe")
-    print(f'\nLogged in as {client.user} (ID: {client.user.id})')
-    print('──────')
+    id_str = f' Logged in with ID: {client.user.id} '
+    l = (len(id_str) - len(client.user.name)) / 2
+    print('\n╭' + ('─' * math.floor(l)) + client.user.name + ('─' * math.ceil(l)) + '╮')
+    print(f'│{id_str}│')
+    print('╰' + ('─' * len(id_str)) + '╯')
 
 
 client.run(os.getenv('BOT_TOKEN'))

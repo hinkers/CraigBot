@@ -1,3 +1,5 @@
+import os
+import shutil
 import sys
 
 from pydub import AudioSegment
@@ -9,8 +11,11 @@ REFERENCE_SAMPLE_RATE = 48000
 
 
 def equalise_loudness(audio_file):
+    temp_file = audio_file + '_prenorm.webm'
+    shutil.move(audio_file, temp_file)
+
     # Load the new audio track
-    audio = AudioSegment.from_file(audio_file, format="webm")
+    audio = AudioSegment.from_file(temp_file, format="webm")
 
     # Resample the new track if necessary
     if audio.frame_rate != REFERENCE_SAMPLE_RATE:
@@ -26,6 +31,8 @@ def equalise_loudness(audio_file):
 
     # Export the normalized audio track as a new file
     audio.export(audio_file, format="webm")
+
+    os.remove(temp_file)
 
     return audio_file
 

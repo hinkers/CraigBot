@@ -18,7 +18,7 @@ class FunCog(commands.Cog):
         """ Displays the server rules. """
         await ctx.send(file=discord.File('data/images/rules.jpg'))
 
-    @commands.command(name="8ball")
+    @commands.hybrid_command(name="8ball")
     async def eight_ball(self, ctx, *, question: str=None):
         """ Ask the magic 8 ball. """
         if not question:
