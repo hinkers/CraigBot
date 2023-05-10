@@ -21,7 +21,7 @@ def main():
         intents = discord.Intents.default()
         intents.message_content = True
         client = CraigBot(debug=debug, command_prefix='!', intents=intents)
-        client.run(os.getenv('BOT_TOKEN'), log_handler=setup_logger(), log_level=logging.DEBUG)
+        client.run(os.getenv('BOT_TOKEN'), log_handler=setup_logger(), log_level=logging.INFO)
     except Exception:
         with open('last_error.txt', 'w+') as f:
             f.write(traceback.format_exc())

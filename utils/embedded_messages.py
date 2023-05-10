@@ -3,6 +3,7 @@ from random import SystemRandom
 
 import discord
 from discord import Colour, Embed
+from audio.playlist import Playlist
 from audio.ytdl_source import YTDLSource
 
 from quotes import quotes
@@ -73,7 +74,7 @@ def queued(song, author, query, now_playing=False):
 
 def playlist(playlist, author, link):
     embed = Embed(
-        title=playlist['title'],
+        title=playlist.title,
         url=link,
         description=f'Added by {author}, items will downloaded in the background and be added to the queue as they finish.',
         colour=Colour.teal(),
@@ -83,62 +84,20 @@ def playlist(playlist, author, link):
         name='Playlist',
         icon_url='https://www.youtube.com/s/desktop/066935b0/img/favicon_32x32.png'
     )
-    embed.set_thumbnail(url=playlist['thumbnails'][0]['url'])
+    embed.set_thumbnail(url=playlist.thumbnail)
     embed.add_field(
         name='Creator',
-        value=playlist['uploader'],
+        value=playlist.creator,
         inline=True
     )
     embed.add_field(
         name='Availability',
-        value=playlist['availability'].title(),
+        value=playlist.availability.title(),
         inline=True
     )
     embed.add_field(
         name='Playlist Items',
-        value=playlist['playlist_count'],
-        inline=True
-    )
-    embed.set_footer(text=random_footer())
-    return embed
-
-
-def playlist_finished(playlist, success, skipped, author, link):
-    embed = Embed(
-        title=playlist['title'],
-        url=link,
-        description=f'Added by {author}, ',
-        colour=Colour.teal(),
-        timestamp=datetime.now()
-    )
-    embed.set_author(
-        name='Finished Downloading Playlist',
-        icon_url='https://www.youtube.com/s/desktop/066935b0/img/favicon_32x32.png'
-    )
-    embed.set_thumbnail(url=playlist['thumbnails'][0]['url'])
-    embed.add_field(
-        name='Creator',
-        value=playlist['uploader'],
-        inline=True
-    )
-    embed.add_field(
-        name='Availability',
-        value=playlist['availability'].title(),
-        inline=True
-    )
-    embed.add_field(
-        name='Playlist Items',
-        value=playlist['playlist_count'],
-        inline=True
-    )
-    embed.add_field(
-        name='Added Items',
-        value=success,
-        inline=True
-    )
-    embed.add_field(
-        name='Skipped Items',
-        value=skipped,
+        value=len(playlist.urls),
         inline=True
     )
     embed.set_footer(text=random_footer())
@@ -184,6 +143,10 @@ def now_playing(song):
 def queue(now_playing, queue):
     songs = [f'1) [{now_playing.title}]({now_playing.url}) [{now_playing.duration_string}]']
     for n, song_url in enumerate(queue[:19], start=2):
+        if isinstance(song_url, Playlist):
+            pl = song_url
+            songs.append(f'{n}) [{pl.title}]({pl.url}) [Playlist {len(pl.urls) - pl.current_index} songs]')
+            continue
         song = YTDLSource.load_json(song_url)
         songs.append(f'{n}) [{song.title}]({song.url}) [{song.duration_string}]')
     if len(queue) > 20:
