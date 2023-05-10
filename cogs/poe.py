@@ -8,7 +8,7 @@ from prettytable import PrettyTable
 from datetime import datetime
 
 
-class PoeCog(commands.Cog):
+class PoeCog(commands.Cog, name='Path of Exile'):
     def __init__(self, bot):
         self.bot = bot
         self.last_sync = datetime.min
@@ -69,11 +69,11 @@ class PoeCog(commands.Cog):
             return
         maps = self.poe_by_map(query)
         if maps != '':
-            await ctx.send(f'```{maps}```', ephemeral=True)
+            await ctx.send(f'Map Search: `{query}`\n```{maps}```', ephemeral=True)
             return
         cards = self.poe_by_card(query)
         if cards != '':
-            await ctx.send(f'```{cards}```', ephemeral=True)
+            await ctx.send(f'Card Search: `{query}`\n```{cards}```', ephemeral=True)
             return
         await ctx.send('No results found.', ephemeral=True)
 

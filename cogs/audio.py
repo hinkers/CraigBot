@@ -1,13 +1,13 @@
 import asyncio
-import threading
 import discord
 from discord.ext import commands
+import yt_dlp
 
 import utils.embedded_messages as embedded_messages
 from audio.ytdl_source import YTDLSource
 
 
-class AudioCog(commands.Cog):
+class AudioCog(commands.Cog, name='Audio'):
     def __init__(self, bot):
         self.bot = bot
 
@@ -57,10 +57,13 @@ class AudioCog(commands.Cog):
         if not info['is_playlist'] and info['duration'] > 900:
             await ctx.send(f'Large download detected, this file will be queued as soon as it is finished downloading.')
         
-        if info['is_playlist']:
-            source = await YTDLSource.download(info['entries'][0]['url'])
-        else:
-            source = await YTDLSource.download(info)
+        try:
+            if info['is_playlist']:
+                source = await YTDLSource.download(info['entries'][0]['url'])
+            else:
+                source = await YTDLSource.download(info)
+        except yt_dlp.utils.DownloadError as e:
+            await ctx.send(str(e))
         if source is None:
             await ctx.send(f'Failed to download audio track.')
             return
@@ -88,29 +91,34 @@ class AudioCog(commands.Cog):
             )
             audioplayer.play()
 
-            # async def download_pl():
-            #     success = 0
-            #     skipped = 0
-            #     for song in info['entries'][1::]:
-            #         source = await YTDLSource.download(song['url'])
-            #         if source is not None:
-            #             audioplayer.add_song(source)
-            #             skipped += 1
-            #         success += 1
-            #     print(success, skipped)
-            #     success -= skipped
-            #     print(success, skipped)
-            #     await ctx.send(
-            #         embed=embedded_messages.playlist_finished(
-            #             info,
-            #             success,
-            #             skipped,
-            #             ctx.author.mention,
-            #             query
-            #         )
-            #     )
-            # loop = asyncio.get_event_loop()
-            # task = loop.create_task(download_pl())
+            async def download_pl():
+                success = 0
+                skipped = 0
+                for song in info['entries'][1::]:
+                    try:
+                        source = await YTDLSource.download(song['url'])
+                    except yt_dlp.utils.DownloadError:
+                        source = None
+                    if source is not None:
+                        audioplayer.add_song(source)
+                        success += 1
+                        if not source.is_cached:
+                            await asyncio.sleep(5)
+                    skipped += 1
+                    print(skipped, song['url'])
+                skipped -= success
+                success += 1
+                await ctx.send(
+                    embed=embedded_messages.playlist_finished(
+                        info,
+                        success,
+                        skipped,
+                        ctx.author.mention,
+                        query
+                    )
+                )
+            loop = asyncio.get_event_loop()
+            task = loop.create_task(download_pl())
 
     @commands.hybrid_command()
     async def np(self, ctx: commands.context):

@@ -13,7 +13,7 @@ pip install -r requirements.txt
 function run_command() {
     while true
     do
-        python craig.py
+        python app.py
     done
 }
 

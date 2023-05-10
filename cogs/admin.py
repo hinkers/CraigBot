@@ -1,15 +1,30 @@
+import math
 from typing import Literal, Optional
 
 import discord
 from discord.ext import commands
 
 
-class AdminCog(commands.Cog):
+class AdminCog(commands.Cog, name='Admin'):
     def __init__(self, bot):
         self.bot = bot
+    
+    @commands.Cog.listener()
+    async def on_ready(self):
+        id_str = f' Logged in with ID: {self.bot.user.id} '
+        l = (len(id_str) - len(self.bot.user.name)) / 2
+        print('\n╭' + ('─' * math.floor(l)) + self.bot.user.name + ('─' * math.ceil(l)) + '╮')
+        print(f'│{id_str}│')
+        print('╰' + ('─' * len(id_str)) + '╯')
 
-    @commands.hybrid_command(name="ping")
-    async def ping_command(self, ctx: commands.Context) -> None:
+    @commands.hybrid_command()
+    async def sudoku(self, ctx: commands.Context) -> None:
+        """ Commit sudoku. """
+        await ctx.send(file=discord.File('data/images/snap.gif'))
+        await ctx.bot.close()
+
+    @commands.hybrid_command()
+    async def ping(self, ctx: commands.Context) -> None:
         """ Responds pong. """
         await ctx.send("pong", ephemeral=True)
 

@@ -4,7 +4,7 @@ from discord.ext import commands
 from utils.embedded_messages import magic_8_ball
 
 
-class FunCog(commands.Cog):
+class FunCog(commands.Cog, name='Fun'):
     def __init__(self, bot):
         self.bot = bot
 

@@ -1,4 +1,7 @@
 
+from audio.ytdl_source import YTDLSource
+
+
 class Queue:
 
     def __init__(self):
@@ -29,7 +32,7 @@ class AudioPlayer:
         return self.current_song is not None
 
     def add_song(self, source):
-        self.queue.put(source)
+        self.queue.put(source.url)
 
     def play(self):
         if self.is_playing:
@@ -44,7 +47,7 @@ class AudioPlayer:
             self.current_song = None
             return
     
-        song = self.queue.get()
+        song = YTDLSource.load_json(self.queue.get())
         self.voice_client.play(
             song,
             after=self.next_song

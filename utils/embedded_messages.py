@@ -3,6 +3,7 @@ from random import SystemRandom
 
 import discord
 from discord import Colour, Embed
+from audio.ytdl_source import YTDLSource
 
 from quotes import quotes
 
@@ -63,7 +64,7 @@ def queued(song, author, query, now_playing=False):
     )
     embed.add_field(
         name='Duration',
-        value=song.duration,
+        value=song.duration_string,
         inline=True
     )
     embed.set_footer(text=random_footer())
@@ -173,7 +174,7 @@ def now_playing(song):
     )
     embed.add_field(
         name='Duration',
-        value=song.duration,
+        value=song.duration_string,
         inline=True
     )
     embed.set_footer(text=random_footer())
@@ -181,9 +182,10 @@ def now_playing(song):
 
 
 def queue(now_playing, queue):
-    songs = [f'1) [{now_playing.title}]({now_playing.url}) [{now_playing.duration}]']
-    for n, song in enumerate(queue[:19], start=2):
-        songs.append(f'{n}) [{song.title}]({song.url}) [{song.duration}]')
+    songs = [f'1) [{now_playing.title}]({now_playing.url}) [{now_playing.duration_string}]']
+    for n, song_url in enumerate(queue[:19], start=2):
+        song = YTDLSource.load_json(song_url)
+        songs.append(f'{n}) [{song.title}]({song.url}) [{song.duration_string}]')
     if len(queue) > 20:
         songs.append(f'\n{len(queue)} total songs queued.')
     embed = Embed(
