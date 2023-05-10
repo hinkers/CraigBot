@@ -1,4 +1,3 @@
-import asyncio
 from time import sleep
 
 from audio.ytdl_source import YTDLSource
