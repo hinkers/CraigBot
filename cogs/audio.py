@@ -23,10 +23,11 @@ class AudioCog(commands.Cog, name='Audio'):
             and len(before.channel.members) == 1
             and before.channel.members[0] == self.bot.user
         ):
-            for voice_client in before.channel.guild.voice_clients:
-                if voice_client.id == before.channel.id:
+            voice_channel = discord.utils.get(self.bot.get_all_channels(), id=before.channel.id)
+            if voice_channel is not None and isinstance(voice_channel, discord.VoiceChannel):
+                voice_client = discord.utils.get(self.bot.voice_clients, channel=voice_channel)
+                if voice_client is not None:
                     await voice_client.disconnect()
-                    return
 
     @commands.hybrid_command()
     async def summon(self, ctx: commands.context):
