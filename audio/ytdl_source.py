@@ -142,13 +142,19 @@ class YTDLSource(discord.PCMVolumeTransformer):
         if not YTDLSource.is_youtube_link(query):
             is_search = True
             search_results = YoutubeSearch(query, max_results=1).to_dict()
+            if len(search_results) == 0:
+                yt_dlp.utils.DownloadError('No results found.')
             query = f"https://www.youtube.com{search_results[0]['url_suffix']}"
         
         if YTDLSource.check_cached(query):
             return YTDLSource.load_json(query).as_dict()
         
-        with yt_dlp.YoutubeDL(ytdl_info_only) as ydl:
-            info = ydl.extract_info(query, download=False)
+        try:
+            with yt_dlp.YoutubeDL(ytdl_info_only) as ydl:
+                info = ydl.extract_info(query, download=False)
+        except yt_dlp.utils.DownloadError as e:
+            print(e)
+            pass  # Something about a playlist does not exist, look into radios
 
         info['is_search'] = is_search
         info['is_playlist'] = info.get('playlist_count') is not None
