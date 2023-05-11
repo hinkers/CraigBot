@@ -36,7 +36,7 @@ class AudioCog(commands.Cog, name='Audio'):
                     await voice_client.disconnect()
 
     @tasks.loop(time=time)
-    def delete_old_files(self):
+    async def delete_old_files(self):
         now = time.time()
         for root, _, files in os.walk('data/audio_cache'):
             for file_name in files:
