@@ -18,7 +18,7 @@ class AdminCog(commands.Cog, name='Admin'):
         print('╰' + ('─' * len(id_str)) + '╯')
 
     @commands.hybrid_command()
-    @commands.is_owner()
+    @commands.has_role(578752587172675596)  # Koi Boiz
     async def sudoku(self, ctx: commands.Context) -> None:
         """ Commit sudoku. """
         await ctx.send(file=discord.File('data/images/snap.gif'))
