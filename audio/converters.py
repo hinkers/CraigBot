@@ -10,6 +10,13 @@ REFERENCE_LOUDNESS = -7.8  # in dBFS
 REFERENCE_SAMPLE_RATE = 48000
 
 
+def convert_to_webm(filename):
+    audio = AudioSegment.from_file(filename)
+    output_format = "webm"
+    audio.export(filename.rsplit('.')[0] + '.webm', format=output_format)
+    os.remove(filename)
+
+
 def equalise_loudness(audio_file):
     temp_file = audio_file + '_prenorm.webm'
     shutil.move(audio_file, temp_file)

@@ -7,7 +7,7 @@ import discord
 import yt_dlp
 from youtube_search import YoutubeSearch
 
-from audio.normalise import equalise_loudness
+from audio.converters import convert_to_webm, equalise_loudness
 
 from datetime import datetime
 
@@ -17,7 +17,7 @@ yt_dlp.utils.bug_reports_message = lambda: ''
 ytdl_download = {
     'username': os.getenv('YT_USERNAME'),
     'password': os.getenv('YT_PASSWORD'),
-    'format': 'bestaudio/best',
+    'format': 'bestaudio[ext=webm]/best[ext=webm]/best',
     'outtmpl': os.path.join('data', 'audio_cache', '%(extractor)s-%(id)s.%(ext)s'),
     'restrictfilenames': True,
     'noplaylist': True,
@@ -35,6 +35,7 @@ ytdl_download = {
 ytdl_info_only = {
     'username': os.getenv('YT_USERNAME'),
     'password': os.getenv('YT_PASSWORD'),
+    'format': 'bestaudio[ext=webm]/best[ext=webm]/best',
     'restrictfilenames': True,
     'nocheckcertificate': True,
     'ignoreerrors': False,
@@ -98,10 +99,12 @@ class YTDLSource(discord.PCMVolumeTransformer):
         )
 
     def save_json(self):
-        filename = os.path.join('data', 'audio_cache', 'youtube-' + self.url.rsplit('=')[-1] + '.json')
+        filename = os.path.join('data', 'audio_cache', 'youtube-' + self.url.rsplit('=')[-1])
         data = self.as_dict()
-        with open(filename, 'w+') as f:
+        with open(filename + '.json', 'w+') as f:
             json.dump(data, f)
+        dt_epoch = datetime.now().timestamp()
+        os.utime(filename + '.webm', (dt_epoch, dt_epoch))
         return data['cached']
     
     @staticmethod
@@ -113,6 +116,8 @@ class YTDLSource(discord.PCMVolumeTransformer):
     
     @staticmethod
     def get_cached_filename(link):
+        if '?' not in link:
+            return ''
         query_string = link.split('?')[1]
         query_params = query_string.split('&')
         for param in query_params:
@@ -176,10 +181,12 @@ class YTDLSource(discord.PCMVolumeTransformer):
             with yt_dlp.YoutubeDL(ytdl_download) as ydl:
                 filename = ydl.prepare_filename(info)
 
-                if not os.path.exists(filename):
+                if not os.path.exists(filename.rsplit('.')[0] + '.webm'):
                     await loop.run_in_executor(None, lambda: ydl.extract_info(info.get('webpage_url'), download=True))
+                    if not filename.endswith('.webm') and os.path.exists(filename):
+                        convert_to_webm(filename)
                     if info['duration'] <= 600:
                         equalise_loudness(filename)
                 return cls(discord.FFmpegPCMAudio(filename, **ffmpeg_options), data=info)
-        except Exception:
+        except Exception as e:
             return None

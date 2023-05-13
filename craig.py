@@ -1,6 +1,7 @@
 import glob
 import os
 from random import SystemRandom
+import traceback
 
 import discord
 from discord.ext import commands
@@ -53,11 +54,26 @@ class CraigBot(commands.Bot):
                 print(error, '')
             print('')
     
+    async def send_owner(self, message):
+        app_info = await self.application_info()
+        await app_info.owner.send(message)
+
     async def setup_hook(self):
         if os.path.isfile('last_error.txt'):
-            app_info = await self.application_info()
             with open('last_error.txt', 'r') as f:
                 error = f.read().replace('```', '`\``')
-            await app_info.owner.send(f'```{error}```')
+            await self.send_owner(f'```{error}```')
             os.remove('last_error.txt')
         await self.load_extensions()
+
+    async def on_error(self, event, *args, **kwargs):
+        error = '\n'.join([
+            f'Event: {event}',
+            f'Args: {args}',
+            f'Kwargs: {kwargs}',
+            ' ----- ',
+            traceback.format_exc()
+        ])
+        await self.send_owner(f'```{error}```')
+
+        super().on_error(self, event, args, kwargs)

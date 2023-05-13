@@ -104,7 +104,7 @@ def playlist(playlist, author, link):
     return embed
 
 
-def now_playing(song):
+def now_playing(song, song_time):
     embed = Embed(
         title=song.title,
         url=song.url,
@@ -129,6 +129,11 @@ def now_playing(song):
     embed.add_field(
         name='Likes',
         value=human_numbers(song.likes),
+        inline=True
+    )
+    embed.add_field(
+        name='Current Place',
+        value=song_time,
         inline=True
     )
     embed.add_field(

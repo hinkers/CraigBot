@@ -86,7 +86,7 @@ class AudioCog(commands.Cog, name='Audio'):
         await ctx.typing()
 
         info = await YTDLSource.get_info(query)
-        if not info['is_playlist'] and info['duration'] > 900:
+        if not info.get('is_playlist', False) and info.get('duration', 0) > 900:
             await ctx.send(f'Large download detected, this file will be queued as soon as it is finished downloading.')
 
         audioplayer = self.bot.get_audioplayer(ctx.voice_client)
@@ -134,7 +134,7 @@ class AudioCog(commands.Cog, name='Audio'):
             await ctx.send('Nothing is currently playing.')
             return
 
-        await ctx.send(embed=embedded_messages.now_playing(audioplayer.current_song))
+        await ctx.send(embed=embedded_messages.now_playing(audioplayer.current_song, audioplayer.current_song_time))
 
     @commands.hybrid_command()
     async def queue(self, ctx: commands.context):
