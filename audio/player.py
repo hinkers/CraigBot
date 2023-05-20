@@ -82,7 +82,7 @@ class AudioPlayer:
         )
         self.current_song = song
         self.current_song_datetime = datetime.now()
-    
+
     def skip(self):
         self.voice_client.stop()
 
