@@ -17,6 +17,10 @@ class CraigBot(commands.Bot):
         self.coggers = []
         self.debug = debug
     
+    @property
+    def craigmoment(self):
+        return self.get_emoji(1109786335016923186) if self.debug else self.get_emoji(903628382460313600)
+    
     def get_audioplayer(self, voice_client):
         try:
             return self.audioplayers[voice_client.channel.id]

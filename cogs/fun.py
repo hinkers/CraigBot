@@ -39,8 +39,7 @@ class FunCog(commands.Cog, name='Fun'):
     async def on_message(self, message):
         if not message.author.bot:
             if self.bot.random.randint(1, 100) == 7:
-                emoji = self.get_emoji(903628382460313600)
-                await message.add_reaction(emoji)
+                await message.add_reaction(self.bot.craigmoment)
 
             words = message.content.lower().replace('?', '').replace('\'', '').split(' ')
 
@@ -94,6 +93,14 @@ class FunCog(commands.Cog, name='Fun'):
                 phrase = words[i:]
                 if len(phrase) > 0:
                     return await message.channel.send(' '.join(phrase) + ' my balls')
+
+    @commands.Cog.listener()
+    async def on_raw_reaction_add(self, payload):
+        channel = self.bot.get_channel(payload.channel_id)
+        message = await channel.fetch_message(payload.message_id)
+
+        if not payload.member.bot and payload.emoji.name == 'craigmoment': # and self.bot.random.randint(1, 10) == 7:
+            await message.add_reaction(payload.emoji)
 
 
 async def setup(bot):
