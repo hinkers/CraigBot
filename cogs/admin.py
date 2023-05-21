@@ -60,6 +60,17 @@ class AdminCog(commands.Cog, name='Admin'):
                 ret += 1
         await ctx.send(f"Synced the tree to {ret}/{len(guilds)}.")
 
+    @commands.command()
+    @commands.dm_only()
+    @commands.is_owner()
+    async def say(self, ctx: commands.Context, channel: discord.TextChannel, *, message: str):
+        await channel.send(message)
+
+    @commands.command()
+    @commands.dm_only()
+    @commands.is_owner()
+    async def reply(self, ctx: commands.Context, original_message: discord.Message, *, message: str):
+        await original_message.reply(message)
 
 async def setup(bot):
     await bot.add_cog(AdminCog(bot))
