@@ -24,7 +24,7 @@ def main():
         client.run(
             os.getenv('BOT_TOKEN'),
             log_handler=setup_logger(),
-            log_level=logging.DEBUG if debug else logging.INFO
+            log_level=logging.INFO
         )
     except Exception:
         with open('last_error.txt', 'w+') as f:

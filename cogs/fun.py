@@ -35,6 +35,66 @@ class FunCog(commands.Cog, name='Fun'):
 
         await ctx.send(**magic_8_ball(ctx.author.name, question, self.bot.random.choice(replies)))
 
+    @commands.Cog.listener()
+    async def on_message(self, message):
+        if not message.author.bot:
+            if self.bot.random.randint(1, 100) == 7:
+                emoji = self.get_emoji(903628382460313600)
+                await message.add_reaction(emoji)
+
+            words = message.content.lower().replace('?', '').replace('\'', '').split(' ')
+
+            if 'im' in words and len(words[words.index('im') + 1:]) <= 3 and len(words[words.index('im') + 1:]) > 0:
+                return await message.channel.send('Hi, ' + ' '.join(words[words.index('im') + 1:]) + ' i\'m <@884378283268014091>')
+            if 'i' in words and 'am' in words:
+                if words[words.index('i') + 1] == 'am' and len(words[words.index('am') + 1:]) <= 3 and len(words[words.index('am') + 1:]) > 0:
+                    return await message.channel.send('Hi, ' + ' '.join(words[words.index('am') + 1:]) + ' i\'m <@884378283268014091>')
+
+            ligmas = [
+                ['ligma', 'Ligma balls'],
+                ['sugma', 'Sugma balls'],
+                ['sucma', 'Sucma balls'],
+                ['bofa', 'Bofa deeze nuts in your mouth'],
+                ['eatma', 'Eatma balls'],
+                ['fugma', 'Fugma balls'],
+                ['kisma', 'Kisma balls'],
+                ['chokonma', 'Chokonma balls'],
+                ['fondalma', 'Fondalma balls'],
+                ['stigma', 'I am going to Stigma dick in your ass'],
+                ['tugunma', 'Tugunma balls'],
+                ['slobonma', 'Slobonma balls'],
+                ['cupma', 'Cupma balls'],
+                ['nibelma', 'Nibelma balls'],
+                ['tipima', 'Tipima dick'],
+                ['jergma', 'Jergma dick'],
+                ['bofadese', 'Bofadese nuts'],
+                ['bophides', 'Bophides nuts'],
+                ['dragondese', 'Dragondese nuts across your face'],
+                ['sugondese', 'Sugondese nuts'],
+                ['rubondese', 'Rubondese nuts'],
+                ['imagine dragon', 'Imagine Dragon my balls across your face'],
+                ['dragon', 'Dragon my nuts across your face'],
+            ]
+            for ligma in ligmas:
+                if ligma[0] in words:
+                    return await message.channel.send(ligma[1])
+
+            if (
+                message.content.lower().startswith('whats') or
+                message.content.lower().startswith('what\'s') or
+                message.content.lower().startswith('what is')
+            ):
+                words = message.content.lower().replace('?', '').replace('\'', '').split(' ')
+                i = 0
+                for word in words:
+                    if word not in ['what', 'is', 'whats', 'the', 'are', 'your', 'youre', 'are', 'this', 'my']:
+                        break
+                    i += 1
+                
+                phrase = words[i:]
+                if len(phrase) > 0:
+                    return await message.channel.send(' '.join(phrase) + ' my balls')
+
 
 async def setup(bot):
     await bot.add_cog(FunCog(bot))
