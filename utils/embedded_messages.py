@@ -1,11 +1,12 @@
 from datetime import datetime
+from math import floor
 from random import SystemRandom
 
 import discord
 from discord import Colour, Embed
+
 from audio.playlist import Playlist
 from audio.ytdl_source import YTDLSource
-
 from quotes import quotes
 
 random = SystemRandom()
@@ -104,9 +105,12 @@ def playlist(playlist, author, link):
     return embed
 
 
-def now_playing(song, song_time):
+def now_playing(song, song_time, song_time_str):
+    percentage = floor((song_time / song.duration) * 22) - 1
+    description = '╼' + ('▬' * percentage) + '●' + ('▬' * (21 - percentage)) + '╾'
     embed = Embed(
         title=song.title,
+        description=description,
         url=song.url,
         colour=Colour.teal(),
         timestamp=datetime.now()
@@ -133,7 +137,7 @@ def now_playing(song, song_time):
     )
     embed.add_field(
         name='Current Place',
-        value=song_time,
+        value=song_time_str,
         inline=True
     )
     embed.add_field(

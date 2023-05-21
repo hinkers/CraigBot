@@ -148,7 +148,13 @@ class AudioCog(commands.Cog, name='Audio'):
             await ctx.send('Nothing is currently playing.')
             return
 
-        await ctx.send(embed=embedded_messages.now_playing(audioplayer.current_song, audioplayer.current_song_time))
+        await ctx.send(
+            embed=embedded_messages.now_playing(
+                audioplayer.current_song,
+                audioplayer.current_song_time,
+                audioplayer.current_song_time_str
+            )
+        )
 
     @commands.hybrid_command()
     async def queue(self, ctx: commands.context):

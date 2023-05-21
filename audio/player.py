@@ -42,8 +42,14 @@ class AudioPlayer:
     def current_song_time(self):
         if self.current_song_datetime is None:
             return None
-        time_delta = datetime.now() - self.current_song_datetime
-        hours, remainder = divmod(time_delta.seconds, 3600)
+        return (datetime.now() - self.current_song_datetime).seconds
+
+    @property
+    def current_song_time_str(self):
+        time_delta = self.current_song_time
+        if time_delta is None:
+            return None
+        hours, remainder = divmod(time_delta, 3600)
         minutes, seconds = divmod(remainder, 60)
         if hours == 0:
             return f"{minutes:02d}:{seconds:02d}"
