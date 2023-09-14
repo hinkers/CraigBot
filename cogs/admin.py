@@ -29,7 +29,7 @@ class AdminCog(commands.Cog, name='Admin'):
         """ Responds pong. """
         await ctx.send("pong", ephemeral=True)
 
-    @commands.command()
+    @commands.command(description='[~] Syncs to the guild\n[*] Syncs global to the guild\n[^] Clears first, then syncs to the guild\nLeave blank for a global sync')
     @commands.guild_only()
     @commands.is_owner()
     async def sync(self, ctx: commands.Context, guilds: commands.Greedy[discord.Object], spec: Optional[Literal["~", "*", "^"]] = None) -> None:

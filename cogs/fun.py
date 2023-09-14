@@ -8,16 +8,6 @@ class FunCog(commands.Cog, name='Fun'):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.hybrid_command()
-    async def lettuce(self, ctx: commands.context):
-        """ Generate a random funny joke. """
-        await ctx.send(file=discord.File('data/images/lettuce.png'))
-
-    @commands.hybrid_command()
-    async def rules(self, ctx: commands.context):
-        """ Displays the server rules. """
-        await ctx.send(file=discord.File('data/images/rules.jpg'))
-
     @commands.hybrid_command(name="8ball")
     async def eight_ball(self, ctx, *, question: str=None):
         """ Ask the magic 8 ball. """
