@@ -169,6 +169,14 @@ class AudioCog(commands.Cog, name='Audio'):
         )
 
     @commands.hybrid_command()
+    async def shuffle(self, ctx: commands.context):
+        """ Displays all songs in the current queue. """
+        audioplayer = self.bot.get_audioplayer(ctx.voice_client)
+        audioplayer.queue.shuffle()
+
+        await ctx.send('It\'s probably shuffled now')
+
+    @commands.hybrid_command()
     @commands.is_owner()
     async def audio_cache(self, ctx: commands.context):
         """ List what audio files have been cached. """
@@ -214,6 +222,7 @@ class AudioCog(commands.Cog, name='Audio'):
     @fuckoff.before_invoke
     @skip.before_invoke
     @queue.before_invoke
+    @shuffle.before_invoke
     async def requires_voice(self, ctx):
         if ctx.voice_client is None:
             await ctx.send("I am not in your channel.")

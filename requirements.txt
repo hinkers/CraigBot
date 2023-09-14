@@ -25,4 +25,5 @@ wcwidth==0.2.6
 websockets==11.0.2
 yarl==1.9.2
 youtube-search==2.1.2
-yt-dlp==2023.3.4
+#yt-dlp==2023.3.4
+yt-dlp

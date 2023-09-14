@@ -3,6 +3,7 @@ from datetime import datetime
 
 from audio.playlist import Playlist
 from audio.ytdl_source import YTDLSource
+from random import shuffle
 
 
 class Queue:
@@ -24,6 +25,12 @@ class Queue:
 
     def as_list(self):
         return self._queue
+
+    def shuffle(self):
+        shuffle(self._queue)
+        for item in self._queue:
+            if isinstance(item, Playlist):
+                shuffle(item.urls)
 
 
 class AudioPlayer:
