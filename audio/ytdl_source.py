@@ -7,9 +7,11 @@ import discord
 import yt_dlp
 from youtube_search import YoutubeSearch
 
-from audio.converters import convert_to_webm, equalise_loudness
+from audio.converter import convert_to_webm, equalise_loudness
 
 from datetime import datetime
+
+from audio.database import Song
 
 # Suppress noise about console usage from errors
 yt_dlp.utils.bug_reports_message = lambda: ''
@@ -156,7 +158,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
         
         try:
             with yt_dlp.YoutubeDL(ytdl_info_only) as ydl:
-                info = ydl.extract_info(query, download=False)
+                info = ydl.extract_info(query, equalise_loudness=False)
         except yt_dlp.utils.DownloadError as e:
             print(e)
             pass  # Something about a playlist does not exist, look into radios
@@ -166,7 +168,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
         return info
 
     @classmethod
-    async def download(cls, info):
+    async def old_download(cls, info):
         loop = asyncio.get_event_loop()
 
         if isinstance(info, str):
@@ -190,3 +192,12 @@ class YTDLSource(discord.PCMVolumeTransformer):
                 return cls(discord.FFmpegPCMAudio(filename, **ffmpeg_options), data=info)
         except Exception as e:
             return None
+
+    @classmethod
+    async def download(cls, song: Song) -> None:
+        with yt_dlp.YoutubeDL(ytdl_download) as ydl:
+            song.filename, song.extension = ydl.prepare_filename(song.info).rsplit('.', 1)
+            ydl.extract_info(song.link, download=True)
+        
+        if song.extension != 'webm':
+            convert_to_webm(song)

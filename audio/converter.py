@@ -5,24 +5,24 @@ import sys
 from pydub import AudioSegment
 from pydub.utils import make_chunks
 
+from audio.database import Song
+
 # Hardcoded reference values for loudness and sample rate
 REFERENCE_LOUDNESS = -7.8  # in dBFS
 REFERENCE_SAMPLE_RATE = 48000
 
 
-def convert_to_webm(filename):
-    audio = AudioSegment.from_file(filename)
+def convert_to_webm(song: Song) -> None:
+    audio = AudioSegment.from_file(song.full_filename)
     output_format = "webm"
-    audio.export(filename.rsplit('.')[0] + '.webm', format=output_format)
-    os.remove(filename)
+    audio.export(song.full_filename_without_extension + '.webm', format=output_format)
+    os.remove(song.full_filename)
+    song.extension = 'webm'
 
 
-def equalise_loudness(audio_file):
-    temp_file = audio_file + '_prenorm.webm'
-    shutil.move(audio_file, temp_file)
-
+def equalise_loudness(song: Song) -> None:
     # Load the new audio track
-    audio = AudioSegment.from_file(temp_file, format="webm")
+    audio = AudioSegment.from_file(song.full_filename, format="webm")
 
     # Resample the new track if necessary
     if audio.frame_rate != REFERENCE_SAMPLE_RATE:
@@ -37,11 +37,10 @@ def equalise_loudness(audio_file):
         audio = audio.apply_gain(REFERENCE_LOUDNESS - loudness)
 
     # Export the normalized audio track as a new file
-    audio.export(audio_file, format="webm")
-
-    os.remove(temp_file)
-
-    return audio_file
+    temp_file = song.full_filename_without_extension + '_normalized.webm'
+    audio.export(temp_file, format="webm")
+    os.remove(song.full_filename)
+    shutil.move(temp_file, song.full_filename)
 
 
 def get_loudness(audio_file):

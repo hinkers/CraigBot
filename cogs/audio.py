@@ -8,6 +8,9 @@ import discord
 import pytz
 import yt_dlp
 from discord.ext import commands, tasks
+from audio.audio import ensure_youtube_reference
+from audio.database import Guild, Song
+from audio.tasks import download, equalise_loudness
 
 import utils.embedded_messages as embedded_messages
 from audio.playlist import Playlist
@@ -96,6 +99,33 @@ class AudioCog(commands.Cog, name='Audio'):
 
     @commands.hybrid_command()
     async def play(self, ctx: commands.context, *, query: str):
+        """ Play a youtube music video in a voice channel. """
+        await ctx.typing()
+
+        try:
+            reference = ensure_youtube_reference(query)
+        except yt_dlp.utils.DownloadError as e:
+            await ctx.send(str(e))
+
+        song = Song.get_by_reference(reference)
+        if song is None:
+            song = Song(reference=reference)
+        
+        await ctx.send(f'Added to queue: {song.link}')
+        
+        if not song.is_downloaded:
+            equalise_loudness.delay(song)
+        elif not song.is_normalized:
+            download.delay(song)
+        
+        guild = Guild.ensure_guild(id_=ctx.guild.id, name=ctx.guild.name)
+        guild.add_song_to_queue(song)
+        song.do_commit()
+
+        # TODO: Trigger play here
+
+    @commands.hybrid_command()
+    async def old_play(self, ctx: commands.context, *, query: str):
         """ Play a youtube music video in a voice channel. """
         await ctx.typing()
 
