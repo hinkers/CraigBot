@@ -22,6 +22,7 @@ class CraigBot(commands.Bot):
         return self.get_emoji(1109786335016923186) if self.debug else self.get_emoji(903628382460313600)
     
     def get_audioplayer(self, voice_client):
+        # TODO: Change to new AudioPlayer
         try:
             return self.audioplayers[voice_client.channel.id]
         except KeyError:

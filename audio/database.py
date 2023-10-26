@@ -1,9 +1,12 @@
 import os
 from typing import Union
+from discord import FFmpegPCMAudio
 
-from sqlalchemy import create_engine, Column, Integer, String, Boolean, Date, ForeignKey
+from sqlalchemy import create_engine, Column, Integer, String, Boolean, Date, ForeignKey, DateTime
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy import inspect
+
+from audio.ytdl_source import YTDLSource, ffmpeg_options
 
 # Create an SQLAlchemy engine
 username = 'craig'
@@ -21,6 +24,7 @@ class Song(Base):
     id = Column(Integer, primary_key=True)
     reference = Column(String)
     title = Column(String, nullable=True)
+    channel = Column(String, nullable=True)
     duration = Column(Integer, nullable=True)
     view_count = Column(Integer, nullable=True)
     like_count = Column(Integer, nullable=True)
@@ -34,7 +38,16 @@ class Song(Base):
 
     @property
     def info(self) -> dict[str, str]:
-        pass
+        return dict(
+            title=self.title,
+            webpage_url=self.link,
+            thumbnail=self.thumbnail,
+            channel=self.channel,
+            duration_string=str(self.duration),
+            duration=self.duration,
+            view_count=self.view_count,
+            like_count=self.like_count
+        )
 
     @property
     def full_filename(self) -> str:
@@ -54,6 +67,9 @@ class Song(Base):
 
     def pop_from_queue(self, guild: Union['Guild', int]) -> 'Song':
         return self.queues.query.filter_by(guild_id=getattr(guild, 'id', guild)).first().pop()
+
+    def as_ytdl_source(self):
+        return YTDLSource(FFmpegPCMAudio(self.full_filename, **ffmpeg_options), data=self.info)
 
     def do_commit(self) -> None:
         session = inspect(self).session
@@ -87,6 +103,11 @@ class Guild(Base):
     name = Column(String)
     channel_id = Column(Integer, nullable=True)
     now_playing_song_id = Column(Integer, nullable=True)
+    now_playing_started = Column(DateTime, nullable=True)
+
+    @property
+    def is_playing(self):
+        return True if self.now_playing_song_id is not None else False
 
     @property
     def queue(self) -> list[Song]:

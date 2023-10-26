@@ -1,6 +1,9 @@
 
 from datetime import datetime
 
+from discord import VoiceProtocol
+from audio.database import Guild
+
 from audio.playlist import Playlist
 from audio.ytdl_source import YTDLSource
 from random import shuffle
@@ -34,6 +37,50 @@ class Queue:
 
 
 class AudioPlayer:
+
+    voice_client: VoiceProtocol
+    guild: Guild
+
+    def __init__(self, ctx):
+        self.voice_client = ctx.voice_client
+        self.guild = Guild.ensure_guild(ctx.guild.id, ctx.guild.name)
+    
+    def play(self):
+        if self.guild.is_playing:
+            return
+        self.next_song()
+
+    def next_song(self, error=None):
+        if error:
+            print(error)
+
+        if not self.guild.queue:
+            self.guild.now_playing_song_id = None
+            self.guild.now_playing_started = None
+            self.guild.do_commit()
+            return
+    
+        song = self.queue.get()
+
+        # TODO: Check if song has finished downloading
+        if not song.is_downloaded:
+            # Just wait maybe?
+            pass
+
+        self.voice_client.play(
+            song.as_ytdl_source(),
+            after=self.next_song
+        )
+
+        self.guild.now_playing_song_id = song.id
+        self.guild.now_playing_started = datetime.now()
+        self.guild.do_commit()
+
+    def skip(self):
+        self.voice_client.stop()
+
+
+class OldAudioPlayer:
 
     def __init__(self, voice_client):
         self.voice_client = voice_client
