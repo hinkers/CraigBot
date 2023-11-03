@@ -2,10 +2,11 @@ import os
 from typing import Union
 
 from sqlalchemy import (BigInteger, Boolean, Column, Date, DateTime,
-                        ForeignKey, Integer, String, create_engine, inspect,
-                        select)
+                        ForeignKey, Integer, String, create_engine, event,
+                        inspect, select)
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.orm import declarative_base, relationship
+from sqlalchemy.sql import func
 
 # Create an SQLAlchemy engine
 username = 'craig'
@@ -18,13 +19,13 @@ Base = declarative_base()
 def get_engine(async_=True):
     if async_:
         return create_async_engine(
-            f'postgresql+asyncpg://{username}:{password}@localhost:5432/{database_name}', echo=True)
+            f'postgresql+asyncpg://{username}:{password}@localhost:5432/{database_name}')
     return create_engine(
-        f'postgresql://{username}:{password}@localhost:5432/{database_name}', echo=True)
+        f'postgresql://{username}:{password}@localhost:5432/{database_name}')
 
 
 class Song(Base):
-    __tablename__ = 'song'
+    __tablename__ = 'audio.songs'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     reference = Column(String)
@@ -43,16 +44,6 @@ class Song(Base):
 
     @property
     def info(self) -> dict[str, str]:
-        print(dict(
-            title=self.title,
-            webpage_url=self.link,
-            thumbnail=self.thumbnail,
-            channel=self.channel,
-            duration_string=str(self.duration),
-            duration=self.duration,
-            view_count=self.view_count,
-            like_count=self.like_count
-        ))
         return dict(
             title=self.title,
             webpage_url=self.link,
@@ -82,37 +73,41 @@ class Song(Base):
         result = await session.execute(statement)
         return result.scalar()
 
-    async def pop_from_queue(self, guild: Union['Guild', int]) -> 'Song':
-        session = inspect(self).session
-        statement = select(Queue).where(Queue.song_id == self.id, Queue.guild_id == getattr(guild, 'id', guild))
-        result = await session.execute(statement)
-        return await result.scalar().pop()
+    def __str__(self):
+        if self.title is None:
+            return self.link
+        return f'[{self.title}] {self.link}'
 
 
 class Queue(Base):
-    __tablename__ = 'queue'
+    __tablename__ = 'audio.queues'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     guild_id = Column(BigInteger, ForeignKey('guild.id'))
     song_id = Column(Integer, ForeignKey('song.id'))
+    order_id = Column(Integer)
 
     guild = relationship("Guild", backref="queues")
     song = relationship("Song", backref="queues")
 
-    async def pop(self) -> Song:
-        session = inspect(self).session
-        await session.delete(self)
-        return self.song
+
+@event.listens_for(Queue, 'before_insert')
+def before_insert(mapper, connection, target):
+    target.order_id = connection.scalar(
+        select([func.count(Queue.id)]).where(Queue.guild_id == target.guild_id)
+    ) + 1
 
 
 class Guild(Base):
-    __tablename__ = 'guild'
+    __tablename__ = 'audio.guilds'
 
     id = Column(BigInteger, primary_key=True)
     name = Column(String)
     channel_id = Column(Integer, nullable=True)
-    now_playing_song_id = Column(Integer, nullable=True)
+    now_playing_song_id = Column(Integer, ForeignKey('song.id'), nullable=True)
     now_playing_started = Column(DateTime, nullable=True)
+
+    song = relationship("Song", backref="now_playing_guilds")
 
     @property
     def is_playing(self):
@@ -132,11 +127,17 @@ class Guild(Base):
         session.add(queue)
 
 
+class Favourite(Base):
+    __tablename__ = 'audio.favourites'
+
+    id = Column(BigInteger, primary_key=True)
+    user_id = Column(Integer, nullable=False)
+    name = Column(String)
+    song_id = Column(Integer, nullable=False)
+
+    song = relationship("Song", backref="favourites")
+
+
 if __name__ == '__main__':
-    import asyncio
-
-    async def main():
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-
-    asyncio.run(main())
+    with get_engine(async_=False).begin():
+        Base.metadata.create_all()

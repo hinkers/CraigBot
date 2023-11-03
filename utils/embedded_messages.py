@@ -5,9 +5,8 @@ from random import SystemRandom
 import discord
 from discord import Colour, Embed
 
-from audio.playlist import Playlist
 from audio.ytdl_source import YTDLSource
-from quotes import quotes
+from quotes import ferengi_rules_of_acquisition
 
 random = SystemRandom()
 
@@ -23,54 +22,7 @@ def human_numbers(number):
 
 
 def random_footer():
-    return random.choice(quotes)
-
-
-def queued(song, author, query, now_playing=False):
-    embed = Embed(
-        title=song.title,
-        url=song.url,
-        description=(
-            f'Added by {author}, using search term(s) "{query}".'
-            if song.is_search else
-            f'Added by {author} with a direct link.'
-        ),
-        colour=Colour.teal(),
-        timestamp=datetime.now()
-    )
-    if now_playing:
-        embed.set_author(
-            name='Now Playing',
-            icon_url='https://www.youtube.com/s/desktop/066935b0/img/favicon_32x32.png'
-        )
-    else:
-        embed.set_author(
-            name='Queued',
-            icon_url='https://www.youtube.com/s/desktop/066935b0/img/favicon_32x32.png'
-        )
-    embed.set_thumbnail(url=song.thumbnail)
-    embed.add_field(
-        name='Channel',
-        value=song.channel_name,
-        inline=True
-    )
-    embed.add_field(
-        name='Views',
-        value=human_numbers(song.views),
-        inline=True
-    )
-    embed.add_field(
-        name='Likes',
-        value=human_numbers(song.likes),
-        inline=True
-    )
-    embed.add_field(
-        name='Duration',
-        value=song.duration_string,
-        inline=True
-    )
-    embed.set_footer(text=random_footer())
-    return embed
+    return random.choice(ferengi_rules_of_acquisition)
 
 
 def playlist(playlist, author, link):
@@ -105,12 +57,10 @@ def playlist(playlist, author, link):
     return embed
 
 
-def now_playing(song, song_time, song_time_str):
-    percentage = floor((song_time / song.duration) * 22) - 1
-    description = '╼' + ('▬' * percentage) + '●' + ('▬' * (21 - percentage)) + '╾'
+def now_playing(song):
     embed = Embed(
         title=song.title,
-        description=description,
+        description=song.link,
         url=song.url,
         colour=Colour.teal(),
         timestamp=datetime.now()
@@ -136,11 +86,6 @@ def now_playing(song, song_time, song_time_str):
         inline=True
     )
     embed.add_field(
-        name='Current Place',
-        value=song_time_str,
-        inline=True
-    )
-    embed.add_field(
         name='Duration',
         value=song.duration_string,
         inline=True
@@ -149,20 +94,12 @@ def now_playing(song, song_time, song_time_str):
     return embed
 
 
-def queue(now_playing, queue):
-    songs = [f'1) [{now_playing.title}]({now_playing.url}) [{now_playing.duration_string}]']
-    for n, song_url in enumerate(queue[:19], start=2):
-        if isinstance(song_url, Playlist):
-            pl = song_url
-            songs.append(f'{n}) [{pl.title}]({pl.url}) [Playlist {len(pl.urls) - pl.current_index} songs]')
-            continue
-        song = YTDLSource.load_json(song_url)
-        songs.append(f'{n}) [{song.title}]({song.url}) [{song.duration_string}]')
-    if len(queue) > 20:
-        songs.append(f'\n{len(queue)} total songs queued.')
+def queue(now_playing, songs):
+    song_descriptions = [f'{n}) {s}' for n, s in enumerate(songs[:20], start=2)]
+    song_descriptions.insert(0, f'**1) {now_playing}**')
     embed = Embed(
         title='Queue',
-        description='\n'.join(songs),
+        description='\n'.join(song_descriptions),
         colour=Colour.teal(),
         timestamp=datetime.now()
     )

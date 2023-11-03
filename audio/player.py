@@ -30,11 +30,14 @@ def skip(ctx) -> bool:
 
 def next_song(ctx, error=None):
     try:
+        # Called during main thread
         loop = asyncio.get_event_loop()
+        loop.create_task(async_next_song(ctx, error))
     except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-    loop.create_task(async_next_song(ctx, error))
+        # Not called from main thread (usually from the 'after' function)
+        coro = async_next_song(ctx, error)
+        fut = asyncio.run_coroutine_threadsafe(coro, ctx.bot.loop)
+        fut.result()
 
 
 async def async_next_song(ctx, error=None):
@@ -45,17 +48,18 @@ async def async_next_song(ctx, error=None):
         voice_client = ctx.voice_client
         guild = await Guild.ensure_guild(session, ctx.guild.id, ctx.guild.name)
 
-        # Get next queue item
-        statement = select(Queue).where(Queue.guild_id == guild.id).order_by(Queue.id).options(selectinload(Queue.song))
+        # Pop the next queue item
+        statement = select(Queue).where(Queue.guild_id == guild.id).order_by(Queue.order_id).options(selectinload(Queue.song))
         result = await session.execute(statement)
         next_in_queue = result.scalar()
 
+        # Clear now playing and exit if nothing in queue
         if not next_in_queue:
             guild.now_playing_song_id = None
             guild.now_playing_started = None
             await session.commit()
             return
-    
+
         song = next_in_queue.song
         await session.delete(next_in_queue)
 

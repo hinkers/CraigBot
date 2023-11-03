@@ -29,15 +29,6 @@ class CraigBot(commands.Bot):
     def craigmoment(self):
         return self.get_emoji(1109786335016923186) if self.debug else self.get_emoji(903628382460313600)
 
-    async def clear_now_playing(self):
-        async with self.session as session:
-            statement = select(Guild).where(Guild.now_playing_song_id != None)
-            result = await session.execute(statement)
-            for guild in result.scalars():
-                guild.now_playing_song_id = None
-                guild.now_playing_started = None
-            await session.commit()
-
     async def load_extensions(self):
         loaded = 0
         errors = []
@@ -73,7 +64,6 @@ class CraigBot(commands.Bot):
             await self.send_owner(f'```{error}```')
             os.remove('last_error.txt')
         await self.load_extensions()
-        await self.clear_now_playing()
 
     async def on_error(self, event, *args, **kwargs):
         error = '\n'.join([
