@@ -1,27 +1,32 @@
 import os
 from typing import Union
-from discord import FFmpegPCMAudio
 
-from sqlalchemy import create_engine, Column, Integer, String, Boolean, Date, ForeignKey, DateTime
+from sqlalchemy import (BigInteger, Boolean, Column, Date, DateTime,
+                        ForeignKey, Integer, String, create_engine, inspect,
+                        select)
+from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.orm import declarative_base, relationship
-from sqlalchemy import inspect
-
-from audio.ytdl_source import YTDLSource, ffmpeg_options
 
 # Create an SQLAlchemy engine
 username = 'craig'
 password = 'securePassword1'
 database_name = 'craig_dev'
-engine = create_engine(
-    f'postgresql://{username}:{password}@localhost:5432/{database_name}')
 
 Base = declarative_base()
+
+
+def get_engine(async_=True):
+    if async_:
+        return create_async_engine(
+            f'postgresql+asyncpg://{username}:{password}@localhost:5432/{database_name}', echo=True)
+    return create_engine(
+        f'postgresql://{username}:{password}@localhost:5432/{database_name}', echo=True)
 
 
 class Song(Base):
     __tablename__ = 'song'
 
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
     reference = Column(String)
     title = Column(String, nullable=True)
     channel = Column(String, nullable=True)
@@ -38,6 +43,16 @@ class Song(Base):
 
     @property
     def info(self) -> dict[str, str]:
+        print(dict(
+            title=self.title,
+            webpage_url=self.link,
+            thumbnail=self.thumbnail,
+            channel=self.channel,
+            duration_string=str(self.duration),
+            duration=self.duration,
+            view_count=self.view_count,
+            like_count=self.like_count
+        ))
         return dict(
             title=self.title,
             webpage_url=self.link,
@@ -62,44 +77,38 @@ class Song(Base):
         return f'https://www.youtube.com/watch?v={self.reference}'
 
     @classmethod
-    def get_by_reference(cls, reference: str) -> Union['Song', None]:
-        return cls.query.filter_by(reference=reference).one_or_none()
+    async def get_by_reference(cls, session, reference: str) -> Union['Song', None]:
+        statement = select(cls).where(cls.reference == reference)
+        result = await session.execute(statement)
+        return result.scalar()
 
-    def pop_from_queue(self, guild: Union['Guild', int]) -> 'Song':
-        return self.queues.query.filter_by(guild_id=getattr(guild, 'id', guild)).first().pop()
-
-    def as_ytdl_source(self):
-        return YTDLSource(FFmpegPCMAudio(self.full_filename, **ffmpeg_options), data=self.info)
-
-    def do_commit(self) -> None:
+    async def pop_from_queue(self, guild: Union['Guild', int]) -> 'Song':
         session = inspect(self).session
-        session.commit()
+        statement = select(Queue).where(Queue.song_id == self.id, Queue.guild_id == getattr(guild, 'id', guild))
+        result = await session.execute(statement)
+        return await result.scalar().pop()
 
 
 class Queue(Base):
     __tablename__ = 'queue'
 
-    id = Column(Integer, primary_key=True)
-    guild_id = Column(Integer, ForeignKey('guild.id'))
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    guild_id = Column(BigInteger, ForeignKey('guild.id'))
     song_id = Column(Integer, ForeignKey('song.id'))
 
     guild = relationship("Guild", backref="queues")
     song = relationship("Song", backref="queues")
 
-    def pop(self) -> Song:
+    async def pop(self) -> Song:
         session = inspect(self).session
-        session.delete(self)
+        await session.delete(self)
         return self.song
-    
-    def do_commit(self) -> None:
-        session = inspect(self).session
-        session.commit()
 
 
 class Guild(Base):
     __tablename__ = 'guild'
 
-    id = Column(Integer, primary_key=True)
+    id = Column(BigInteger, primary_key=True)
     name = Column(String)
     channel_id = Column(Integer, nullable=True)
     now_playing_song_id = Column(Integer, nullable=True)
@@ -109,15 +118,10 @@ class Guild(Base):
     def is_playing(self):
         return True if self.now_playing_song_id is not None else False
 
-    @property
-    def queue(self) -> list[Song]:
-        return [q.song for q in self.queues.query.order_by(Song.id.desc()).all()]
-
     @classmethod
-    def ensure_guild(cls, id_: str, name: str) -> 'Guild':
-        guild = cls.query.filter_by(id=id_).one_or_none()
+    async def ensure_guild(cls, session, id_: str, name: str) -> 'Guild':
+        guild = await session.get(cls, id_)
         if guild is None:
-            session = inspect(cls).session
             guild = Guild(id=id_, name=name)
             session.add(guild)
         return guild
@@ -126,11 +130,13 @@ class Guild(Base):
         session = inspect(self).session
         queue = Queue(guild_id=self.id, song_id=song.id)
         session.add(queue)
-        
-    def do_commit(self) -> None:
-        session = inspect(self).session
-        session.commit()
 
 
-# Create tables
-Base.metadata.create_all(engine)
+if __name__ == '__main__':
+    import asyncio
+
+    async def main():
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+
+    asyncio.run(main())

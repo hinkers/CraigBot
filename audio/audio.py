@@ -24,6 +24,5 @@ def ensure_youtube_reference(query: str) -> str:
         search_results = YoutubeSearch(query, max_results=1).to_dict()
         if len(search_results) == 0:
             yt_dlp.utils.DownloadError('No results found.')
-        reference = extract_youtube_reference_from_url(
-            f"https://www.youtube.com{search_results[0]['url_suffix']}")
+        reference = search_results[0]['id']
     return reference

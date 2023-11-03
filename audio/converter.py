@@ -1,11 +1,15 @@
+from __future__ import annotations
+
 import os
 import shutil
 import sys
+from typing import TYPE_CHECKING
 
 from pydub import AudioSegment
 from pydub.utils import make_chunks
 
-from audio.database import Song
+if TYPE_CHECKING:
+    from audio.database import Song
 
 # Hardcoded reference values for loudness and sample rate
 REFERENCE_LOUDNESS = -7.8  # in dBFS

@@ -1,150 +1,73 @@
-
+import asyncio
 from datetime import datetime
 
-from discord import VoiceProtocol
-from audio.database import Guild
+from discord import FFmpegPCMAudio
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload, sessionmaker
 
-from audio.playlist import Playlist
-from audio.ytdl_source import YTDLSource
-from random import shuffle
+from audio.database import Guild, Queue, get_engine
+from audio.ytdl_source import YTDLSource, ffmpeg_options
 
-
-class Queue:
-
-    def __init__(self):
-        self._queue = []
-    
-    def insert(self, index, item):
-        self._queue.insert(index, item)
-
-    def put(self, item):
-        self._queue.append(item)
-    
-    def get(self):
-        return self._queue.pop(0)
-
-    def is_empty(self):
-        return len(self._queue) == 0
-
-    def as_list(self):
-        return self._queue
-
-    def shuffle(self):
-        shuffle(self._queue)
-        for item in self._queue:
-            if isinstance(item, Playlist):
-                shuffle(item.urls)
+Session = sessionmaker(autocommit=False, autoflush=False, expire_on_commit=False, bind=get_engine(), class_=AsyncSession)
 
 
-class AudioPlayer:
+async def play(ctx):
+    async with Session() as session:
+        guild = await Guild.ensure_guild(session, ctx.guild.id, ctx.guild.name)
+    if guild.is_playing:
+        return
+    next_song(ctx)
 
-    voice_client: VoiceProtocol
-    guild: Guild
 
-    def __init__(self, ctx):
-        self.voice_client = ctx.voice_client
-        self.guild = Guild.ensure_guild(ctx.guild.id, ctx.guild.name)
-    
-    def play(self):
-        if self.guild.is_playing:
-            return
-        self.next_song()
+def skip(ctx) -> bool:
+    voice_client = ctx.voice_client
+    if voice_client.is_playing:
+        voice_client.stop()  # For some reason this doesn't seem to trigger the next song
+        return True
+    return False
 
-    def next_song(self, error=None):
-        if error:
-            print(error)
 
-        if not self.guild.queue:
-            self.guild.now_playing_song_id = None
-            self.guild.now_playing_started = None
-            self.guild.do_commit()
+def next_song(ctx, error=None):
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    loop.create_task(async_next_song(ctx, error))
+
+
+async def async_next_song(ctx, error=None):
+    if error:
+        print(error)
+
+    async with Session() as session:        
+        voice_client = ctx.voice_client
+        guild = await Guild.ensure_guild(session, ctx.guild.id, ctx.guild.name)
+
+        # Get next queue item
+        statement = select(Queue).where(Queue.guild_id == guild.id).order_by(Queue.id).options(selectinload(Queue.song))
+        result = await session.execute(statement)
+        next_in_queue = result.scalar()
+
+        if not next_in_queue:
+            guild.now_playing_song_id = None
+            guild.now_playing_started = None
+            await session.commit()
             return
     
-        song = self.queue.get()
+        song = next_in_queue.song
+        await session.delete(next_in_queue)
 
-        # TODO: Check if song has finished downloading
-        if not song.is_downloaded:
-            # Just wait maybe?
-            pass
+        while not song.is_downloaded:
+            await asyncio.sleep(1)
+            await session.refresh(song)
 
-        self.voice_client.play(
-            song.as_ytdl_source(),
-            after=self.next_song
+        voice_client.play(
+            YTDLSource(FFmpegPCMAudio(song.full_filename, **ffmpeg_options), data=song.info),
+            after=lambda e: next_song(ctx, e)
         )
 
-        self.guild.now_playing_song_id = song.id
-        self.guild.now_playing_started = datetime.now()
-        self.guild.do_commit()
-
-    def skip(self):
-        self.voice_client.stop()
-
-
-class OldAudioPlayer:
-
-    def __init__(self, voice_client):
-        self.voice_client = voice_client
-        self.queue = Queue()
-        self.current_song = None
-        self.current_song_datetime = None
-    
-    @property
-    def is_playing(self):
-        return self.current_song is not None
-
-    @property
-    def current_song_time(self):
-        if self.current_song_datetime is None:
-            return None
-        return (datetime.now() - self.current_song_datetime).seconds
-
-    @property
-    def current_song_time_str(self):
-        time_delta = self.current_song_time
-        if time_delta is None:
-            return None
-        hours, remainder = divmod(time_delta, 3600)
-        minutes, seconds = divmod(remainder, 60)
-        if hours == 0:
-            return f"{minutes:02d}:{seconds:02d}"
-        return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
-
-    def add_song(self, source):
-        if isinstance(source, Playlist):
-            self.queue.put(source)
-            return
-        self.queue.put(source.url)
-
-    def play(self):
-        if self.is_playing:
-            return
-        self.next_song()
-
-    def next_song(self, error=None):
-        if error:
-            print(error)
-
-        if self.queue.is_empty():
-            self.current_song = None
-            return
-    
-        next_item = self.queue.get()
-        if isinstance(next_item, Playlist):
-            song = next_item.get()
-            if song is None:
-                return self.next_song()
-            self.queue.insert(0, next_item)
-        else:
-            song = YTDLSource.load_json(next_item)
-        self.voice_client.play(
-            song,
-            after=self.next_song
-        )
-        self.current_song = song
-        self.current_song_datetime = datetime.now()
-
-    def skip(self):
-        self.voice_client.stop()
-
-    def get_queue(self):
-        return self.queue.as_list()
+        guild.now_playing_song_id = song.id
+        guild.now_playing_started = datetime.now()
+        await session.commit()

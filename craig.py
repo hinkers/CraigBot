@@ -1,12 +1,16 @@
 import glob
 import os
-from random import SystemRandom
 import traceback
+from random import SystemRandom
 
 import discord
 from discord.ext import commands
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from audio.player import AudioPlayer
+from audio.database import Guild, get_engine
+
+Session = async_sessionmaker(autocommit=False, autoflush=False, expire_on_commit=False, bind=get_engine(), class_=AsyncSession)
 
 
 class CraigBot(commands.Bot):
@@ -18,22 +22,21 @@ class CraigBot(commands.Bot):
         self.debug = debug
     
     @property
+    def session(self) -> AsyncSession:
+        return Session()
+
+    @property
     def craigmoment(self):
         return self.get_emoji(1109786335016923186) if self.debug else self.get_emoji(903628382460313600)
-    
-    def get_audioplayer(self, voice_client):
-        # TODO: Change to new AudioPlayer
-        try:
-            return self.audioplayers[voice_client.channel.id]
-        except KeyError:
-            self.audioplayers[voice_client.channel.id] = AudioPlayer(voice_client)
-            return self.audioplayers[voice_client.channel.id]
-    
-    def destroy_audioplayer(self, channel):
-        try:
-            del self.audioplayers[channel.id]
-        except KeyError:
-            pass
+
+    async def clear_now_playing(self):
+        async with self.session as session:
+            statement = select(Guild).where(Guild.now_playing_song_id != None)
+            result = await session.execute(statement)
+            for guild in result.scalars():
+                guild.now_playing_song_id = None
+                guild.now_playing_started = None
+            await session.commit()
 
     async def load_extensions(self):
         loaded = 0
@@ -70,6 +73,7 @@ class CraigBot(commands.Bot):
             await self.send_owner(f'```{error}```')
             os.remove('last_error.txt')
         await self.load_extensions()
+        await self.clear_now_playing()
 
     async def on_error(self, event, *args, **kwargs):
         error = '\n'.join([

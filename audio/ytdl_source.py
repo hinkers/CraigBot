@@ -1,17 +1,20 @@
+from __future__ import annotations
 
 import asyncio
+import json
 import os
 import re
-import json
+from datetime import datetime
+from typing import TYPE_CHECKING
+
 import discord
 import yt_dlp
 from youtube_search import YoutubeSearch
 
 from audio.converter import convert_to_webm, equalise_loudness
 
-from datetime import datetime
-
-from audio.database import Song
+if TYPE_CHECKING:
+    from audio.database import Song
 
 # Suppress noise about console usage from errors
 yt_dlp.utils.bug_reports_message = lambda: ''
@@ -194,9 +197,17 @@ class YTDLSource(discord.PCMVolumeTransformer):
             return None
 
     @classmethod
-    async def download(cls, song: Song) -> None:
+    def download(cls, song: Song) -> None:
         with yt_dlp.YoutubeDL(ytdl_download) as ydl:
-            song.filename, song.extension = ydl.prepare_filename(song.info).rsplit('.', 1)
+            info = ydl.extract_info(song.link)
+            song.filename, song.extension = ydl.prepare_filename(info).rsplit('.', 1)
+            song.filename = song.filename.rsplit('/')[-1]
+            song.title = info['title']
+            song.channel = info['channel']
+            song.duration = info['duration']
+            song.view_count = info['view_count']
+            song.like_count = info['like_count']
+            song.thumbnail = info['thumbnail']
             ydl.extract_info(song.link, download=True)
         
         if song.extension != 'webm':

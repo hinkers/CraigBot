@@ -8,12 +8,13 @@ import discord
 import pytz
 import yt_dlp
 from discord.ext import commands, tasks
+
+import audio.player as player
+import utils.embedded_messages as embedded_messages
 from audio.audio import ensure_youtube_reference
 from audio.database import Guild, Song
-from audio.tasks import download, equalise_loudness
-
-import utils.embedded_messages as embedded_messages
 from audio.playlist import Playlist
+from audio.tasks import download, equalise_loudness
 from audio.ytdl_source import YTDLSource
 
 time = datetime.time(hour=20, minute=12, tzinfo=pytz.timezone('Australia/Sydney'))
@@ -23,13 +24,16 @@ class AudioCog(commands.Cog, name='Audio'):
     def __init__(self, bot):
         self.bot = bot
         self.current_status = None
-        self.listening_status.start()
+        # TODO: Maybe fix this?
+        # self.listening_status.start()
         self.delete_old_files.start()
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
         if member == self.bot.user and after.channel is None:
-            self.bot.destroy_audioplayer(before.channel)
+            # I dont think anything is needed here before
+            # self.bot.destroy_audioplayer(before.channel)
+            pass
         elif (
             member != self.bot.user
             and before.channel is not None
@@ -42,17 +46,18 @@ class AudioCog(commands.Cog, name='Audio'):
                 if voice_client is not None:
                     await voice_client.disconnect()
 
-    @tasks.loop(seconds=10)
-    async def listening_status(self):
-        new_status = None
-        for audioplayer in self.bot.audioplayers.values():
-            if audioplayer.is_playing:
-                new_status = discord.Game(name=audioplayer.current_song.title)
+    # TODO: Maybe fix this?
+    # @tasks.loop(seconds=10)
+    # async def listening_status(self):
+    #     new_status = None
+    #     for audioplayer in self.bot.audioplayers.values():
+    #         if audioplayer.is_playing:
+    #             new_status = discord.Game(name=audioplayer.current_song.title)
                 
-        if self.current_status != new_status:
-            await self.bot.wait_until_ready()
-            await self.bot.change_presence(activity=new_status)
-            self.current_status = new_status
+    #     if self.current_status != new_status:
+    #         await self.bot.wait_until_ready()
+    #         await self.bot.change_presence(activity=new_status)
+    #         self.current_status = new_status
 
     @tasks.loop(time=time)
     async def delete_old_files(self):
@@ -87,11 +92,9 @@ class AudioCog(commands.Cog, name='Audio'):
     @commands.hybrid_command()
     async def skip(self, ctx: commands.context):
         """ Skip the current song. """
-        audioplayer = self.bot.get_audioplayer(ctx.voice_client)
-        if not audioplayer.is_playing:
+        if not player.skip(ctx):
             await ctx.send('Nothing is currently playing.')
             return
-        audioplayer.skip()
         if self.bot.random.randint(1, 10) == 1:
             await ctx.send(file=discord.File('data/images/skip_it.png'))
             return
@@ -107,22 +110,31 @@ class AudioCog(commands.Cog, name='Audio'):
         except yt_dlp.utils.DownloadError as e:
             await ctx.send(str(e))
 
-        song = Song.get_by_reference(reference)
-        if song is None:
-            song = Song(reference=reference)
-        
-        await ctx.send(f'Added to queue: {song.link}')
-        
-        if not song.is_downloaded:
-            equalise_loudness.delay(song)
-        elif not song.is_normalized:
-            download.delay(song)
-        
-        guild = Guild.ensure_guild(id_=ctx.guild.id, name=ctx.guild.name)
-        guild.add_song_to_queue(song)
-        song.do_commit()
+        async with self.bot.session as session:
+            song = await Song.get_by_reference(session, reference)
+            if song is None:
+                song = Song(reference=reference)
+                session.add(song)
+                await session.commit()
+                await session.refresh(song)
+            print(song.id)
+            print(song.reference)
+            
+            await ctx.send(f'Added to queue: {song.link}')
+            
+            if not song.is_downloaded:
+                try:
+                    download.delay(song.id)
+                except Exception as e:
+                    print(e)
+            elif not song.is_normalized:
+                equalise_loudness.delay(song.id)
+            
+            guild = await Guild.ensure_guild(session=session, id_=ctx.guild.id, name=ctx.guild.name)
+            guild.add_song_to_queue(song)
+            await session.commit()
 
-        # TODO: Trigger play here
+        await player.play(ctx)
 
     @commands.hybrid_command()
     async def old_play(self, ctx: commands.context, *, query: str):
