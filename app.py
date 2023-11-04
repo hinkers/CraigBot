@@ -21,6 +21,8 @@ def main():
         intents = discord.Intents.default()
         intents.message_content = True
         client = CraigBot(debug=debug, command_prefix='!', intents=intents)
+        if debug:            
+            open('discord.log', 'w').close()
         client.run(
             os.getenv('BOT_TOKEN'),
             log_handler=setup_logger(),

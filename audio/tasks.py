@@ -4,7 +4,8 @@ from celery import Celery
 from sqlalchemy.orm import sessionmaker
 
 import audio.converter as converter
-from audio.database import Song, get_engine
+from database.audio import Song
+from database.database import get_engine
 from audio.ytdl_source import YTDLSource
 
 Session = sessionmaker(autocommit=False, autoflush=False, bind=get_engine(async_=False))

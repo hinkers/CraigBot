@@ -9,7 +9,7 @@ from pydub import AudioSegment
 from pydub.utils import make_chunks
 
 if TYPE_CHECKING:
-    from audio.database import Song
+    from database.audio import Song
 
 # Hardcoded reference values for loudness and sample rate
 REFERENCE_LOUDNESS = -7.8  # in dBFS

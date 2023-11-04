@@ -14,7 +14,7 @@ from youtube_search import YoutubeSearch
 from audio.converter import convert_to_webm, equalise_loudness
 
 if TYPE_CHECKING:
-    from audio.database import Song
+    from database.audio import Song
 
 # Suppress noise about console usage from errors
 yt_dlp.utils.bug_reports_message = lambda: ''

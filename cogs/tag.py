@@ -4,40 +4,39 @@ import os
 from discord.ext import commands
 
 
-class TagsCog(commands.Cog):
+class TagCog(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
-        self.tag_file = "data/tags.json"
-        if os.path.exists(self.tag_file):
-            with open(self.tag_file, 'r') as f:
-                self.tags = json.load(f)
-        else:
-            self.tags = {}
 
     @commands.Cog.listener()
     async def on_message(self, message):
         if message.author.bot:
             return
         
-        parts = message.content.split(' ', 1)
-        if parts[0].startswith('!'):
+        if message.content.startswith('!'):
+            parts = message.content.split(' ', 1)
             tag_name = parts[0][1:]
-            tag_content = self.tags.get(tag_name)
-            if tag_content:
-                await message.channel.send(tag_content)
 
-    def save_tags(self):
-        with open(self.tag_file, 'w') as f:
-            json.dump(self.tags, f)
-    
-    @commands.group(invoke_without_command=True)
+            async with self.bot.session as session:
+                statement = select(Tag).where(Tag.guild_id == ctx.guild.id, Tag.name == tag_name)
+                result = await session.execute(statement)
+                tag = result.scalar()
+
+                if tag:
+                    await message.channel.send(tag.message)
+
+    @commands.hybrid_group(invoke_without_command=True)
     async def tag(self, ctx, *, name: str):
-        tag = self.tags.get(name)
-        if tag:
-            await ctx.send(tag)
-        else:
-            await ctx.send('Tag not found.')
+        async with self.bot.session as session:
+            statement = select(Tag).where(Tag.guild_id == ctx.guild.id, Tag.name == name)
+            result = await session.execute(statement)
+            tag = result.scalar()
+
+            if tag:
+                await ctx.send(tag.message)
+            else:
+                await ctx.send('Tag not found.')
 
     @tag.command(name='add')
     @commands.has_permissions(manage_messages=True)
@@ -69,5 +68,5 @@ class TagsCog(commands.Cog):
 
 
 async def setup(bot):
-    await bot.add_cog(TagsCog(bot))
+    await bot.add_cog(TagCog(bot))
 

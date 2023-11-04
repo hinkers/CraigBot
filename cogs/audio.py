@@ -10,12 +10,13 @@ import yt_dlp
 from discord.ext import commands, tasks
 from sqlalchemy import delete, select
 from sqlalchemy.orm import selectinload
+from sqlalchemy.sql import func
 
 import audio.player as player
 import utils.embedded_messages as embedded_messages
 from audio.audio import ensure_youtube_reference
-from audio.database import Guild, Queue, Song
 from audio.tasks import download, equalise_loudness
+from database.audio import Guild, Queue, Song
 
 time = datetime.time(hour=20, minute=12, tzinfo=pytz.timezone('Australia/Sydney'))
 
@@ -31,7 +32,7 @@ class AudioCog(commands.Cog, name='Audio'):
         await self.clear_queue(guild=None)
         await self.clear_now_playing(guild=None)
         self.listening_status.start()
-        if not self.debug:
+        if not self.bot.debug:
             self.delete_old_files.start()
 
     async def clear_queue(self, guild: Optional[Union[int, Guild]]) -> None:
@@ -44,7 +45,7 @@ class AudioCog(commands.Cog, name='Audio'):
             await session.commit()
 
     async def clear_now_playing(self, guild: Optional[Union[int, Guild]]) -> None:
-        async with self.session as session:
+        async with self.bot.session as session:
             statement = select(Guild).where(Guild.now_playing_song_id != None)            
             if guild is not None:
                 statement = statement.where(Guild.id == getattr(guild, 'id', guild))   
@@ -143,8 +144,6 @@ class AudioCog(commands.Cog, name='Audio'):
                 await session.commit()
                 await session.refresh(song)
             
-            await ctx.send(f'Added to queue: {song.link}')
-            
             if not song.is_downloaded:
                 try:
                     download.delay(song.id)
@@ -154,8 +153,15 @@ class AudioCog(commands.Cog, name='Audio'):
                 equalise_loudness.delay(song.id)
             
             guild = await Guild.ensure_guild(session=session, id_=ctx.guild.id, name=ctx.guild.name)
-            guild.add_song_to_queue(song)
+            queue = guild.add_song_to_queue(session, song)
+            result = await session.execute(
+                select(func.max(Queue.order_id)).where(Queue.guild_id == queue.guild_id)
+            )
+            max_order_id = result.scalar_one_or_none()
+            queue.order_id = max_order_id + 1 if max_order_id else 1
             await session.commit()
+            
+            await ctx.send(f'Added to queue: {song.link}')
 
         await player.play(ctx)
 
@@ -193,9 +199,17 @@ class AudioCog(commands.Cog, name='Audio'):
 
     @commands.hybrid_command()
     async def shuffle(self, ctx: commands.context):
-        """ Displays all songs in the current queue. """
-        audioplayer = self.bot.get_audioplayer(ctx.voice_client)
-        audioplayer.queue.shuffle()
+        """ Shuffle the play order of all songs in the current queue. """
+        async with self.bot.session as session:
+            statement = select(Queue).where(Queue.guild_id == ctx.guild.id))
+            result = await session.execute(statement)
+            queue = result.scalars().all()
+
+            self.bot.random.shuffle(queue)
+            for n, queue_item in enumerate(queue):
+                queue.order_id = n
+
+            await session.commit()
 
         await ctx.send('It\'s probably shuffled now')
 
@@ -207,8 +221,6 @@ class AudioCog(commands.Cog, name='Audio'):
 
         files_count = len(os.listdir(directory_path))
         webm_count = len(glob.glob(os.path.join(directory_path, '*.webm')))
-        json_count = len(glob.glob(os.path.join(directory_path, '*.json')))
-        prenorm_count = len(glob.glob(os.path.join(directory_path, '*_prenorm.webm')))
         
         total_size = sum(os.path.getsize(os.path.join(directory_path, f)) for f in os.listdir(directory_path) if os.path.isfile(os.path.join(directory_path, f))) / (1024 ** 2)
 
@@ -224,8 +236,6 @@ class AudioCog(commands.Cog, name='Audio'):
         lines = '\n'.join([
             f'Total files: {files_count}',
             f'Audio files: {webm_count}',
-            f'Json files: {json_count}',
-            f'Prenormalised files: {prenorm_count}',
             f'Total file size: {total_size:.2f} MiB',
             f'Oldest file: {oldest_date_str}'
         ])

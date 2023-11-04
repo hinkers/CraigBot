@@ -2,30 +2,14 @@ import os
 from typing import Union
 
 from sqlalchemy import (BigInteger, Boolean, Column, Date, DateTime,
-                        ForeignKey, Integer, String, create_engine, event,
-                        inspect, select)
-from sqlalchemy.ext.asyncio import create_async_engine
-from sqlalchemy.orm import declarative_base, relationship
-from sqlalchemy.sql import func
+                        ForeignKey, Integer, String, select)
+from sqlalchemy.orm import relationship
 
-# Create an SQLAlchemy engine
-username = 'craig'
-password = 'securePassword1'
-database_name = 'craig_dev'
-
-Base = declarative_base()
-
-
-def get_engine(async_=True):
-    if async_:
-        return create_async_engine(
-            f'postgresql+asyncpg://{username}:{password}@localhost:5432/{database_name}')
-    return create_engine(
-        f'postgresql://{username}:{password}@localhost:5432/{database_name}')
+from database.database import Base, get_engine
 
 
 class Song(Base):
-    __tablename__ = 'audio.songs'
+    __tablename__ = 'audio_song'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     reference = Column(String)
@@ -76,35 +60,28 @@ class Song(Base):
     def __str__(self):
         if self.title is None:
             return self.link
-        return f'[{self.title}] {self.link}'
+        return f'[{self.title}]\n{self.link}'
 
 
 class Queue(Base):
-    __tablename__ = 'audio.queues'
+    __tablename__ = 'audio_queue'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    guild_id = Column(BigInteger, ForeignKey('guild.id'))
-    song_id = Column(Integer, ForeignKey('song.id'))
-    order_id = Column(Integer)
+    guild_id = Column(BigInteger, ForeignKey('audio_guild.id'))
+    song_id = Column(Integer, ForeignKey('audio_song.id'))
+    order_id = Column(Integer, nullable=False)
 
     guild = relationship("Guild", backref="queues")
     song = relationship("Song", backref="queues")
 
 
-@event.listens_for(Queue, 'before_insert')
-def before_insert(mapper, connection, target):
-    target.order_id = connection.scalar(
-        select([func.count(Queue.id)]).where(Queue.guild_id == target.guild_id)
-    ) + 1
-
-
 class Guild(Base):
-    __tablename__ = 'audio.guilds'
+    __tablename__ = 'audio_guild'
 
     id = Column(BigInteger, primary_key=True)
     name = Column(String)
     channel_id = Column(Integer, nullable=True)
-    now_playing_song_id = Column(Integer, ForeignKey('song.id'), nullable=True)
+    now_playing_song_id = Column(Integer, ForeignKey('audio_song.id'), nullable=True)
     now_playing_started = Column(DateTime, nullable=True)
 
     song = relationship("Song", backref="now_playing_guilds")
@@ -121,23 +98,23 @@ class Guild(Base):
             session.add(guild)
         return guild
 
-    def add_song_to_queue(self, song: Song) -> None:
-        session = inspect(self).session
+    def add_song_to_queue(self, session, song: Song) -> Queue:
         queue = Queue(guild_id=self.id, song_id=song.id)
         session.add(queue)
+        return queue
 
 
 class Favourite(Base):
-    __tablename__ = 'audio.favourites'
+    __tablename__ = 'audio_favourite'
 
     id = Column(BigInteger, primary_key=True)
     user_id = Column(Integer, nullable=False)
     name = Column(String)
-    song_id = Column(Integer, nullable=False)
+    song_id = Column(Integer, ForeignKey('audio_song.id'), nullable=False)
 
     song = relationship("Song", backref="favourites")
 
 
 if __name__ == '__main__':
-    with get_engine(async_=False).begin():
-        Base.metadata.create_all()
+    with get_engine(async_=False).begin() as engine:
+        Base.metadata.create_all(bind=engine)

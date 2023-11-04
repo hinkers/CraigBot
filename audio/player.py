@@ -5,8 +5,9 @@ from discord import FFmpegPCMAudio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload, sessionmaker
+from database.audio import Guild, Queue
 
-from audio.database import Guild, Queue, get_engine
+from database.database import get_engine
 from audio.ytdl_source import YTDLSource, ffmpeg_options
 
 Session = sessionmaker(autocommit=False, autoflush=False, expire_on_commit=False, bind=get_engine(), class_=AsyncSession)
@@ -29,6 +30,7 @@ def skip(ctx) -> bool:
 
 
 def next_song(ctx, error=None):
+    print('next song')
     try:
         # Called during main thread
         loop = asyncio.get_event_loop()
@@ -41,6 +43,7 @@ def next_song(ctx, error=None):
 
 
 async def async_next_song(ctx, error=None):
+    print('async next song')
     if error:
         print(error)
 
