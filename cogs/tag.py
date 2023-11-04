@@ -1,7 +1,7 @@
-import json
-import os
-
 from discord.ext import commands
+from sqlalchemy import select
+
+from database.tag import Tag
 
 
 class TagCog(commands.Cog):
@@ -11,15 +11,15 @@ class TagCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message):
-        if message.author.bot:
+        if message.author.bot or not message.guild:
             return
-        
+
         if message.content.startswith('!'):
             parts = message.content.split(' ', 1)
             tag_name = parts[0][1:]
 
             async with self.bot.session as session:
-                statement = select(Tag).where(Tag.guild_id == ctx.guild.id, Tag.name == tag_name)
+                statement = select(Tag).where(Tag.guild_id == message.guild.id, Tag.name == tag_name)
                 result = await session.execute(statement)
                 tag = result.scalar()
 
@@ -41,30 +41,51 @@ class TagCog(commands.Cog):
     @tag.command(name='add')
     @commands.has_permissions(manage_messages=True)
     async def tag_add(self, ctx, name: str, *, content: str):
-        if name in self.tags:
-            await ctx.send('Tag already exists.')
-        else:
-            self.tags[name] = content
-            self.save_tags()
-            await ctx.send(f'Tag `{name}` added.')
+        async with self.bot.session as session:
+            statement = select(Tag).where(Tag.guild_id == ctx.guild.id, Tag.name == name)
+            result = await session.execute(statement)
+            tag = result.scalar()
+
+            if tag:
+                await ctx.send('Tag already exists.')
+            else:
+                tag = Tag(
+                    guild_id=ctx.guild.id,
+                    user_id=ctx.author.id,
+                    name=name,
+                    message=content
+                )
+                session.add(tag)
+                await session.commit()
+                await ctx.send(f'Tag `{name}` added.')
 
     @tag.command(name='delete')
     @commands.has_permissions(manage_messages=True)
     async def tag_delete(self, ctx, *, name: str):
-        if name in self.tags:
-            del self.tags[name]
-            self.save_tags()
-            await ctx.send(f'Tag `{name}` deleted.')
-        else:
-            await ctx.send('Tag not found.')
+        async with self.bot.session as session:
+            statement = select(Tag).where(Tag.guild_id == ctx.guild.id, Tag.name == name)
+            result = await session.execute(statement)
+            tag = result.scalar()
+
+            if tag:
+                await session.delete(tag)
+                await session.commit()
+                await ctx.send(f'Tag `{name}` deleted.')
+            else:
+                await ctx.send('Tag not found.')
 
     @tag.command(name='list')
     async def tag_list(self, ctx):
-        if self.tags:
-            keys = [f'- {k}' for k in self.tags.keys()]
-            await ctx.send('```All tags:\n' + '\n'.join(keys) + '```')
-        else:
-            await ctx.send('No tags available.')
+        async with self.bot.session as session:
+            statement = select(Tag).where(Tag.guild_id == ctx.guild.id)
+            result = await session.execute(statement)
+            tags = result.scalars()
+
+            if tags:
+                descriptions = [f'- {t.name}' for t in tags.all()]
+                await ctx.send('```All tags:\n' + '\n'.join(descriptions) + '```')
+            else:
+                await ctx.send('No tags available.')
 
 
 async def setup(bot):

@@ -16,7 +16,7 @@ import audio.player as player
 import utils.embedded_messages as embedded_messages
 from audio.audio import ensure_youtube_reference
 from audio.tasks import download, equalise_loudness
-from database.audio import Guild, Queue, Song
+from database.audio import Guild, Queue, Song, Favourite
 
 time = datetime.time(hour=20, minute=12, tzinfo=pytz.timezone('Australia/Sydney'))
 
@@ -135,6 +135,7 @@ class AudioCog(commands.Cog, name='Audio'):
             reference = ensure_youtube_reference(query)
         except yt_dlp.utils.DownloadError as e:
             await ctx.send(str(e))
+            return
 
         async with self.bot.session as session:
             song = await Song.get_by_reference(session, reference)
@@ -201,13 +202,13 @@ class AudioCog(commands.Cog, name='Audio'):
     async def shuffle(self, ctx: commands.context):
         """ Shuffle the play order of all songs in the current queue. """
         async with self.bot.session as session:
-            statement = select(Queue).where(Queue.guild_id == ctx.guild.id))
+            statement = select(Queue).where(Queue.guild_id == ctx.guild.id)
             result = await session.execute(statement)
             queue = result.scalars().all()
 
             self.bot.random.shuffle(queue)
             for n, queue_item in enumerate(queue):
-                queue.order_id = n
+                queue_item.order_id = n
 
             await session.commit()
 
@@ -242,8 +243,110 @@ class AudioCog(commands.Cog, name='Audio'):
 
         await ctx.send(f'```{lines}```')
 
+    @commands.hybrid_command()
+    async def playf(self, ctx: commands.context, *, name: str):
+        """ Play a youtube music video in a voice channel. """
+        await ctx.typing()
+
+        async with self.bot.session as session:
+            statement = select(Favourite).where(Favourite.name == name, Favourite.user_id == ctx.author.id).options(selectinload(Favourite.song))
+            result = await session.execute(statement)
+            favourite = result.scalar()
+            if not favourite:
+                await ctx.send(f'Favourite not found.')
+                return
+            song = favourite.song
+            
+            if not song.is_downloaded:
+                try:
+                    download.delay(song.id)
+                except Exception as e:
+                    print(e)
+            elif not song.is_normalized:
+                equalise_loudness.delay(song.id)
+            
+            guild = await Guild.ensure_guild(session=session, id_=ctx.guild.id, name=ctx.guild.name)
+            queue = guild.add_song_to_queue(session, song)
+            result = await session.execute(
+                select(func.max(Queue.order_id)).where(Queue.guild_id == queue.guild_id)
+            )
+            max_order_id = result.scalar_one_or_none()
+            queue.order_id = max_order_id + 1 if max_order_id else 1
+            await session.commit()
+            
+            await ctx.send(f'Added to queue: {song.link}')
+
+        await player.play(ctx)
+
+    @commands.hybrid_group(invoke_without_command=False)
+    async def favourite(self, ctx):
+        await ctx.send('Use playf to play a favourite.')
+
+    @favourite.command(name='add')
+    @commands.has_permissions(manage_messages=True)
+    async def favourite_add(self, ctx, query: str, *, name: str):
+        async with self.bot.session as session:
+            statement = select(Favourite).where(Favourite.user_id == ctx.author.id, Favourite.name == name)
+            result = await session.execute(statement)
+            favourite = result.scalar()
+
+            if favourite:
+                await ctx.send('Favourite name already exists.')
+            else:
+
+                try:
+                    reference = ensure_youtube_reference(query)
+                except yt_dlp.utils.DownloadError as e:
+                    await ctx.send(str(e))
+                    return
+
+                song = await Song.get_by_reference(session, reference)
+                if song is None:
+                    song = Song(reference=reference)
+                    session.add(song)
+                    await session.commit()
+                    await session.refresh(song)
+
+                favourite = Favourite(
+                    user_id=ctx.author.id,
+                    song_id=song.id,
+                    name=name
+                )
+                session.add(favourite)
+                await session.commit()
+                await ctx.send(f'Favourite `{name}` added.')
+
+    @favourite.command(name='delete')
+    @commands.has_permissions(manage_messages=True)
+    async def favourite_delete(self, ctx, *, name: str):
+        async with self.bot.session as session:
+            statement = select(Favourite).where(Favourite.user_id == ctx.author.id, Favourite.name == name)
+            result = await session.execute(statement)
+            favourite = result.scalar()
+
+            if favourite:
+                await session.delete(favourite)
+                await session.commit()
+                await ctx.send(f'Favourite `{name}` deleted.')
+            else:
+                await ctx.send('Favourite not found.')
+
+    @favourite.command(name='list')
+    async def favourite_list(self, ctx):
+        async with self.bot.session as session:
+            statement = select(Favourite).where(Favourite.user_id == ctx.author.id)
+            result = await session.execute(statement)
+            favourites = result.scalars()
+
+            if favourites:
+                descriptions = [f'- {t.name}' for t in favourites.all()]
+                await ctx.send('```All your favourites:\n' + '\n'.join(descriptions) + '```')
+            else:
+                await ctx.send('No favourites available.')
+
     @connect.before_invoke
     @play.before_invoke
+    @playf.before_invoke
     async def ensure_voice(self, ctx):
         if ctx.voice_client is None:
             if ctx.author.voice:

@@ -107,14 +107,9 @@ class Guild(Base):
 class Favourite(Base):
     __tablename__ = 'audio_favourite'
 
-    id = Column(BigInteger, primary_key=True)
-    user_id = Column(Integer, nullable=False)
+    id = Column(Integer, primary_key=True)
+    user_id = Column(BigInteger, nullable=False)
     name = Column(String)
     song_id = Column(Integer, ForeignKey('audio_song.id'), nullable=False)
 
     song = relationship("Song", backref="favourites")
-
-
-if __name__ == '__main__':
-    with get_engine(async_=False).begin() as engine:
-        Base.metadata.create_all(bind=engine)

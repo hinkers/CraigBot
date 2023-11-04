@@ -61,7 +61,7 @@ def now_playing(song):
     embed = Embed(
         title=song.title,
         description=song.link,
-        url=song.url,
+        url=song.link,
         colour=Colour.teal(),
         timestamp=datetime.now()
     )
@@ -72,22 +72,22 @@ def now_playing(song):
     embed.set_thumbnail(url=song.thumbnail)
     embed.add_field(
         name='Channel',
-        value=song.channel_name,
+        value=song.channel,
         inline=True
     )
     embed.add_field(
         name='Views',
-        value=human_numbers(song.views),
+        value=human_numbers(song.view_count),
         inline=True
     )
     embed.add_field(
         name='Likes',
-        value=human_numbers(song.likes),
+        value=human_numbers(song.like_count),
         inline=True
     )
     embed.add_field(
         name='Duration',
-        value=song.duration_string,
+        value=song.duration,
         inline=True
     )
     embed.set_footer(text=random_footer())

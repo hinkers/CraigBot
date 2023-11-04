@@ -4,6 +4,8 @@ from typing import Literal, Optional
 import discord
 from discord.ext import commands
 
+from database.database import Base, get_engine
+
 
 class AdminCog(commands.Cog, name='Admin'):
     def __init__(self, bot):
@@ -71,6 +73,14 @@ class AdminCog(commands.Cog, name='Admin'):
     @commands.is_owner()
     async def reply(self, ctx: commands.Context, original_message: discord.Message, *, message: str):
         await original_message.reply(message)
+
+    @commands.command()
+    @commands.dm_only()
+    @commands.is_owner()
+    async def create_tables(self, ctx: commands.Context) -> None:
+        with get_engine(async_=False).begin() as engine:
+            Base.metadata.create_all(bind=engine)
+        await ctx.send('Tables created')
 
 async def setup(bot):
     await bot.add_cog(AdminCog(bot))

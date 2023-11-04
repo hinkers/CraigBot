@@ -30,7 +30,6 @@ def skip(ctx) -> bool:
 
 
 def next_song(ctx, error=None):
-    print('next song')
     try:
         # Called during main thread
         loop = asyncio.get_event_loop()
@@ -43,7 +42,6 @@ def next_song(ctx, error=None):
 
 
 async def async_next_song(ctx, error=None):
-    print('async next song')
     if error:
         print(error)
 
@@ -77,4 +75,5 @@ async def async_next_song(ctx, error=None):
 
         guild.now_playing_song_id = song.id
         guild.now_playing_started = datetime.now()
+        song.date_last_played = datetime.now()
         await session.commit()

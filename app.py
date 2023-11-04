@@ -15,13 +15,13 @@ def main():
         load_dotenv('dev.env')
     else:
         debug = False
-        load_dotenv('prod.env')  
+        load_dotenv('prod.env')
 
     try:
         intents = discord.Intents.default()
         intents.message_content = True
         client = CraigBot(debug=debug, command_prefix='!', intents=intents)
-        if debug:            
+        if debug:
             open('discord.log', 'w').close()
         client.run(
             os.getenv('BOT_TOKEN'),

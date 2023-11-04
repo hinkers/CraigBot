@@ -5,10 +5,9 @@ from random import SystemRandom
 
 import discord
 from discord.ext import commands
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
-from database.audio import Guild
 
+from dotenv import load_dotenv
 from database.database import get_engine
 
 Session = async_sessionmaker(autocommit=False, autoflush=False, expire_on_commit=False, bind=get_engine(), class_=AsyncSession)
@@ -21,6 +20,11 @@ class CraigBot(commands.Bot):
         self.random = SystemRandom()
         self.coggers = []
         self.debug = debug
+
+        if self.debug:
+            load_dotenv('dev.env')
+        else:
+            load_dotenv('prod.env')  
     
     @property
     def session(self) -> AsyncSession:
