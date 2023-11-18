@@ -16,15 +16,15 @@ function run_command() {
         # Check if the celery worker process is running
         pgrep -f 'celery -A audio.tasks worker' > /dev/null
 
-        # If the check returns non-zero, the process is not running, so start it
+        # If the check returns non-zero, the process is not running, so start it with nice
         if [ $? -ne 0 ]; then
-            celery -A audio.tasks worker &
+            nice -n 10 celery -A audio.tasks worker &
         fi
 
         # Start Craig
         python app.py
 
-        # Deactive python virtual environment
+        # Deactivate python virtual environment
         deactivate
     done
 }
