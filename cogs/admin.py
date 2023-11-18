@@ -77,6 +77,18 @@ class AdminCog(commands.Cog, name='Admin'):
     @commands.command()
     @commands.dm_only()
     @commands.is_owner()
+    async def drop_tables(self, ctx: commands.Context) -> None:
+        """
+        Asynchronously drops all tables defined in the database's metadata.
+        This operation is irreversible and should be used with caution.
+        """
+        with get_engine(async_=False).begin() as engine:
+            Base.metadata.drop_all(bind=engine)
+        await ctx.send('All tables dropped')
+
+    @commands.command()
+    @commands.dm_only()
+    @commands.is_owner()
     async def create_tables(self, ctx: commands.Context) -> None:
         with get_engine(async_=False).begin() as engine:
             Base.metadata.create_all(bind=engine)

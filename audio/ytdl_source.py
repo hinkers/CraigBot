@@ -170,14 +170,18 @@ class YTDLSource(discord.PCMVolumeTransformer):
         return info
     
     @staticmethod
-    def get_playlist(cls, link):
-        with yt_dlp.YoutubeDL(ytdl_download) as ydl:
-            info = ydl.extract_info(song.link)
+    def get_playlist(link):
+        with yt_dlp.YoutubeDL(ytdl_info_only) as ydl:
+            return ydl.extract_info(link)
 
     @staticmethod
-    def download(cls, song: Song) -> None:
+    def download(song: Song) -> bool:
         with yt_dlp.YoutubeDL(ytdl_download) as ydl:
-            info = ydl.extract_info(song.link)
+            try:
+                info = ydl.extract_info(song.link)
+            except yt_dlp.DownloadError as e:
+                song.download_error = str(e)
+                return False
             song.filename, song.extension = ydl.prepare_filename(info).rsplit('.', 1)
             song.filename = song.filename.rsplit('/')[-1]
             song.title = info['title']
@@ -190,3 +194,5 @@ class YTDLSource(discord.PCMVolumeTransformer):
         
         if song.extension != 'webm':
             convert_to_webm(song)
+        
+        return True

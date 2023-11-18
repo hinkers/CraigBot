@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 import glob
 import os
@@ -14,9 +15,11 @@ from sqlalchemy.sql import func
 
 import audio.player as player
 import utils.embedded_messages as embedded_messages
-from audio.audio import ensure_youtube_reference
+from audio.audio import (ensure_youtube_reference,
+                         extract_youtube_playlist_reference)
 from audio.tasks import download, equalise_loudness
-from database.audio import Guild, Queue, Song, Favourite
+from audio.ytdl_source import YTDLSource
+from database.audio import Favourite, Guild, Queue, Song
 
 time = datetime.time(hour=20, minute=12, tzinfo=pytz.timezone('Australia/Sydney'))
 
@@ -35,6 +38,7 @@ class AudioCog(commands.Cog, name='Audio'):
         if not self.bot.debug:
             self.delete_old_files.start()
 
+    @commands.is_owner()
     async def clear_queue(self, guild: Optional[Union[int, Guild]]) -> None:
         async with self.bot.session as session:
             statement = delete(Queue)
@@ -44,6 +48,7 @@ class AudioCog(commands.Cog, name='Audio'):
             await session.execute(statement)
             await session.commit()
 
+    @commands.is_owner()
     async def clear_now_playing(self, guild: Optional[Union[int, Guild]]) -> None:
         async with self.bot.session as session:
             statement = select(Guild).where(Guild.now_playing_song_id != None)            
@@ -90,18 +95,46 @@ class AudioCog(commands.Cog, name='Audio'):
 
     @tasks.loop(time=time)
     async def delete_old_files(self):
-        now = time.time()
-        for root, _, files in os.walk('data/audio_cache'):
-            for file_name in files:
-                file_path = os.path.join(root, file_name)
-                if os.path.isfile(file_path):
-                    modified_time = os.path.getmtime(file_path)
-                    if (now - modified_time) > 2*30*24*60*60:  # 2 month = 2 * 30 days * 24 hours * 60 minutes * 60 seconds
-                        try:
-                            os.remove(file_path)
-                            print(f"{file_path} file deleted.")
-                        except Exception as e:
-                            print(f"Error deleting {file_path}: {e}")
+        """
+        Asynchronously deletes files associated with Song records that were downloaded but not played in the last two months.
+        It also updates the corresponding records in the database to reflect the changes.
+        """
+
+        # Calculate the date two months ago from the current time
+        two_months_ago = datetime.datetime.now() - datetime.timedelta(days=60)
+
+        # Start an asynchronous database session
+        async with self.bot.session as session:
+            # Prepare a SQL query to select songs that are downloaded and not played for the last two months
+            statement = select(Song).where(
+                Song.is_downloaded == True,
+                Song.date_last_played < two_months_ago
+            )
+
+            # Execute the query asynchronously
+            result = await session.execute(statement)
+
+            # Iterate over the results
+            for song in result.scalars():
+                try:
+                    # If the main song file exists, delete it
+                    if os.path.isfile(song.file_path):
+                        os.remove(song.file_path)
+
+                    # If the normalized version of the song exists, delete it
+                    if os.path.isfile(song.full_normalized_filename):
+                        os.remove(song.full_normalized_filename)
+
+                    # Update the song record to reflect the deletion
+                    song.is_downloaded = False
+                    song.is_normalized = False
+
+                except Exception as e:
+                    # Log any exceptions encountered during file deletion
+                    print(f"Error deleting files for song {song.id}: {e}")
+
+            # Commit the changes to the database after processing all songs
+            await session.commit()
 
     @commands.hybrid_command(aliases=['summon'])
     async def connect(self, ctx: commands.context):
@@ -115,7 +148,7 @@ class AudioCog(commands.Cog, name='Audio'):
         await ctx.send('You got it chief.')
         await self.clear_queue(ctx.guild.id)
 
-    @commands.hybrid_command(aliases=['stop'])
+    @commands.hybrid_command(aliases=['stop', 'next'])
     async def skip(self, ctx: commands.context):
         """ Skip the current song. """
         if not player.skip(ctx):
@@ -145,7 +178,7 @@ class AudioCog(commands.Cog, name='Audio'):
                 await session.commit()
                 await session.refresh(song)
             
-            await self.do_play(song, session)
+            await self.do_play(ctx, song, session)
 
     @commands.hybrid_command()
     async def playf(self, ctx: commands.context, *, name: str):
@@ -161,27 +194,48 @@ class AudioCog(commands.Cog, name='Audio'):
                 return
             song = favourite.song
             
-            await self.do_play(song, session)
+            await self.do_play(ctx, song, session)
 
     @commands.hybrid_command()
     async def playlist(self, ctx: commands.context, *, link: str):
         """ Play a youtube music video in a voice channel. """
         await ctx.typing()
 
-        if not is_youtube_playlist_link(link):
+        reference = extract_youtube_playlist_reference(link)
+        if reference is None:
             await ctx.send('Not a valid youtube playlist link.')
             return
 
+        playlist_info = YTDLSource.get_playlist(f'https://www.youtube.com/playlist?list={reference}')
+
         async with self.bot.session as session:
-            for song_dict in playlist:
-                song = await Song.get_by_reference(session, reference)
+            guild = await Guild.ensure_guild(session=session, id_=ctx.guild.id, name=ctx.guild.name)
+            result = await session.execute(
+                select(func.max(Queue.order_id)).where(Queue.guild_id == guild.id)
+            )
+            max_order_id = result.scalar_one_or_none()
+            order_id = max_order_id if max_order_id else 0
+            
+            first = True
+            for song_dict in playlist_info['entries']:
+                order_id += 1
+                song = await Song.get_by_reference(session, song_dict['id'])
                 if song is None:
-                    song = Song(reference=reference)
+                    song = Song(reference=song_dict['id'])
                     session.add(song)
                     await session.commit()
                     await session.refresh(song)
-            
-            await self.do_play(song, session)
+                
+                if first:
+                    first = False            
+                    await self.do_play(ctx, song, session)
+                    await asyncio.sleep(10)
+                    continue
+                
+                queue = guild.add_song_to_queue(session, song)
+                queue.order_id = order_id
+
+            await session.commit()
 
     @commands.hybrid_command(aliases=['np', 'now', 'playing'])
     async def now_playing(self, ctx: commands.context):
@@ -209,7 +263,13 @@ class AudioCog(commands.Cog, name='Audio'):
                 await ctx.send('Nothing is currently playing.')
                 return
 
-            statement = select(Queue).where(Queue.guild_id == ctx.guild.id).options(selectinload(Queue.song))
+            statement = (
+                select(Queue)
+                .where(Queue.guild_id == ctx.guild.id)
+                .options(selectinload(Queue.song))
+                .order_by(Queue.order_id)
+                .limit(19)
+            )
             result = await session.execute(statement)
             queues = result.scalars()
 
@@ -260,9 +320,16 @@ class AudioCog(commands.Cog, name='Audio'):
 
         await ctx.send(f'```{lines}```')
 
-    @commands.hybrid_group(invoke_without_command=False)
+    @commands.hybrid_group(invoke_without_command=False, aliases=['favourites'])
     async def favourite(self, ctx):
-        await ctx.send('Use playf to play a favourite.')
+        await ctx.send('\n'.join([
+            '```Commands:',
+            '   - favourite add <url> <name>',
+            '   - favourite delete <url> <name>',
+            '   - favourite list',
+            '   - playf name',
+            '```'
+        ]))
 
     @favourite.command(name='add')
     @commands.has_permissions(manage_messages=True)
@@ -275,13 +342,7 @@ class AudioCog(commands.Cog, name='Audio'):
             if favourite:
                 await ctx.send('Favourite name already exists.')
             else:
-
-                try:
-                    reference = ensure_youtube_reference(query)
-                except yt_dlp.utils.DownloadError as e:
-                    await ctx.send(str(e))
-                    return
-
+                reference = ensure_youtube_reference(query)
                 song = await Song.get_by_reference(session, reference)
                 if song is None:
                     song = Song(reference=reference)
@@ -318,10 +379,10 @@ class AudioCog(commands.Cog, name='Audio'):
         async with self.bot.session as session:
             statement = select(Favourite).where(Favourite.user_id == ctx.author.id)
             result = await session.execute(statement)
-            favourites = result.scalars()
+            favourites = result.scalars().all()
 
             if favourites:
-                descriptions = [f'- {t.name}' for t in favourites.all()]
+                descriptions = [f'- {t.name}' for t in favourites]
                 await ctx.send('```All your favourites:\n' + '\n'.join(descriptions) + '```')
             else:
                 await ctx.send('No favourites available.')
@@ -350,7 +411,7 @@ class AudioCog(commands.Cog, name='Audio'):
             await ctx.send("You are not connected to a voice channel.")
             raise commands.CommandError("Author not connected to a voice channel.")
 
-    async def do_play(self, song, session):
+    async def do_play(self, ctx, song, session):
         if not song.is_downloaded:
             song.has_download_task = True
             await session.commit()

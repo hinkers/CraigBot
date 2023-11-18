@@ -26,10 +26,10 @@ def convert_to_webm(song: Song) -> None:
 
 def equalise_loudness(song: Song, swap_now) -> None:
     # Normalized file path
-    normalized_file = song.full_filename_without_extension + '_normalized.webm'
+    normalized_file = song.full_normalized_filename
 
     # Check if the normalized file already exists
-    if not os.exists(normalized_file):
+    if not os.path.isfile(normalized_file):
         # Load the new audio track
         audio = AudioSegment.from_file(song.full_filename, format="webm")
 

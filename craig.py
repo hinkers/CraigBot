@@ -8,7 +8,7 @@ from discord.ext import commands
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from dotenv import load_dotenv
-from database.database import get_engine
+from database.database import Base, get_engine
 
 Session = async_sessionmaker(autocommit=False, autoflush=False, expire_on_commit=False, bind=get_engine(), class_=AsyncSession)
 
@@ -57,6 +57,9 @@ class CraigBot(commands.Bot):
             for error in errors:
                 print(error, '')
             print('')
+                
+        with get_engine(async_=False).begin() as engine:
+            Base.metadata.create_all(bind=engine)
     
     async def send_owner(self, message):
         app_info = await self.application_info()

@@ -12,7 +12,9 @@ random = SystemRandom()
 
 
 def human_numbers(number):
-    if number < 1000:
+    if number is None:
+        return 0
+    elif number < 1000:
         return str(number)
     elif number < 1000000:
         return str(int(number / 1000)) + "K"
@@ -23,38 +25,6 @@ def human_numbers(number):
 
 def random_footer():
     return random.choice(ferengi_rules_of_acquisition)
-
-
-def playlist(playlist, author, link):
-    embed = Embed(
-        title=playlist.title,
-        url=link,
-        description=f'Added by {author}, items will downloaded in the background and be added to the queue as they finish.',
-        colour=Colour.teal(),
-        timestamp=datetime.now()
-    )
-    embed.set_author(
-        name='Playlist',
-        icon_url='https://www.youtube.com/s/desktop/066935b0/img/favicon_32x32.png'
-    )
-    embed.set_thumbnail(url=playlist.thumbnail)
-    embed.add_field(
-        name='Creator',
-        value=playlist.creator,
-        inline=True
-    )
-    embed.add_field(
-        name='Availability',
-        value=playlist.availability.title(),
-        inline=True
-    )
-    embed.add_field(
-        name='Playlist Items',
-        value=len(playlist.urls),
-        inline=True
-    )
-    embed.set_footer(text=random_footer())
-    return embed
 
 
 def now_playing(song):
@@ -95,7 +65,7 @@ def now_playing(song):
 
 
 def queue(now_playing, songs):
-    song_descriptions = [f'{n}) {s}' for n, s in enumerate(songs[:20], start=2)]
+    song_descriptions = [f'{n}) {s}' for n, s in enumerate(songs, start=2)]
     song_descriptions.insert(0, f'**1) {now_playing}**')
     embed = Embed(
         title='Queue',

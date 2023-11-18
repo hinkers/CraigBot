@@ -29,12 +29,10 @@ def ensure_youtube_reference(query: str) -> str:
     return reference
 
 
-def is_youtube_playlist_link(link):
-    # Regular expression pattern to match YouTube playlist URLs
-    playlist_pattern = r'^(https?://)?(www\.)?youtube\.com/playlist\?list=[\w-]+$'
+def extract_youtube_playlist_reference(link: str) -> str:
+    playlist_pattern = r'^(?:https?:\/\/)?(?:www\.)?youtube\.com.*?\?.*?list=([\w-]+)$'
+    match = re.match(playlist_pattern, link)
+    if match:
+        return match.group(1)
+    return None
 
-    # Use the re.match function to check if the link matches the pattern
-    if re.match(playlist_pattern, link):
-        return True
-    else:
-        return False

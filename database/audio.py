@@ -21,6 +21,7 @@ class Song(Base):
     filename = Column(String, nullable=True)
     extension = Column(String, nullable=True)
     thumbnail = Column(String, nullable=True)
+    download_error = Column(String, nullable=True)
     is_normalized = Column(Boolean, default=False)
     is_downloaded = Column(Boolean, default=False)
     has_download_task = Column(Boolean, default=False)
@@ -43,6 +44,10 @@ class Song(Base):
     @property
     def full_filename(self) -> str:
         return os.path.join('data', 'audio_cache', f'{self.filename}.{self.extension}')
+
+    @property
+    def full_normalized_filename(self) -> str:
+        return os.path.join('data', 'audio_cache', f'{self.filename}_normalized.{self.extension}')
 
     @property
     def full_filename_without_extension(self) -> str:

@@ -5,10 +5,11 @@ from discord import FFmpegPCMAudio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload, sessionmaker
-from database.audio import Guild, Queue
 
-from database.database import get_engine
+from audio.tasks import download
 from audio.ytdl_source import YTDLSource, ffmpeg_options
+from database.audio import Guild, Queue
+from database.database import get_engine
 
 Session = sessionmaker(autocommit=False, autoflush=False, expire_on_commit=False, bind=get_engine(), class_=AsyncSession)
 
@@ -64,16 +65,45 @@ async def async_next_song(ctx, error=None):
         song = next_in_queue.song
         await session.delete(next_in_queue)
 
+        guild.now_playing_song_id = song.id
+        await session.commit()
+
+        if not song.is_downloaded and not song.has_download_task:
+            song.has_download_task = True
+            await session.commit()
+            download.delay(song.id)
+
         while not song.is_downloaded:
             await asyncio.sleep(1)
             await session.refresh(song)
+
+            if song.download_error is not None:
+                await ctx.send(f'Download failed for {song}\n{song.download_error}')
+                next_song(ctx)
+                return
 
         voice_client.play(
             YTDLSource(FFmpegPCMAudio(song.full_filename, **ffmpeg_options), data=song.info),
             after=lambda e: next_song(ctx, e)
         )
 
-        guild.now_playing_song_id = song.id
         guild.now_playing_started = datetime.now()
         song.date_last_played = datetime.now()
         await session.commit()
+
+        # Try to make sure the next song will already be downloaded
+        # Get the next queue item
+        statement = select(Queue).where(Queue.guild_id == guild.id).order_by(Queue.order_id).options(selectinload(Queue.song))
+        result = await session.execute(statement)
+        next_in_queue = result.scalar()
+
+        # No next song means nothing to download
+        if not next_in_queue:
+            return
+
+        song = next_in_queue.song
+
+        if not song.is_downloaded and not song.has_download_task:
+            song.has_download_task = True
+            await session.commit()
+            download.delay(song.id)
