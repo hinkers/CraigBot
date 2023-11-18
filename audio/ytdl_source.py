@@ -164,39 +164,17 @@ class YTDLSource(discord.PCMVolumeTransformer):
                 info = ydl.extract_info(query, equalise_loudness=False)
         except yt_dlp.utils.DownloadError as e:
             print(e)
-            pass  # Something about a playlist does not exist, look into radios
 
         info['is_search'] = is_search
         info['is_playlist'] = info.get('playlist_count') is not None
         return info
+    
+    @staticmethod
+    def get_playlist(cls, link):
+        with yt_dlp.YoutubeDL(ytdl_download) as ydl:
+            info = ydl.extract_info(song.link)
 
-    @classmethod
-    async def old_download(cls, info):
-        loop = asyncio.get_event_loop()
-
-        if isinstance(info, str):
-            if YTDLSource.check_cached(info):
-                return YTDLSource.load_json(info)
-            info = await YTDLSource.get_info(info)
-
-        if YTDLSource.check_cached(info.get('webpage_url')):
-            return YTDLSource.load_json(info.get('webpage_url'))
-
-        try:
-            with yt_dlp.YoutubeDL(ytdl_download) as ydl:
-                filename = ydl.prepare_filename(info)
-
-                if not os.path.exists(filename.rsplit('.')[0] + '.webm'):
-                    await loop.run_in_executor(None, lambda: ydl.extract_info(info.get('webpage_url'), download=True))
-                    if not filename.endswith('.webm') and os.path.exists(filename):
-                        convert_to_webm(filename)
-                    if info['duration'] <= 600:
-                        equalise_loudness(filename)
-                return cls(discord.FFmpegPCMAudio(filename, **ffmpeg_options), data=info)
-        except Exception as e:
-            return None
-
-    @classmethod
+    @staticmethod
     def download(cls, song: Song) -> None:
         with yt_dlp.YoutubeDL(ytdl_download) as ydl:
             info = ydl.extract_info(song.link)

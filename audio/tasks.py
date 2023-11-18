@@ -29,11 +29,11 @@ app = Celery(
 
 
 @app.task
-def equalise_loudness(song_id: int):
+def equalise_loudness(song_id: int, swap_now=True):
     with Session() as session:
         song = session.get(Song, song_id)
-        converter.equalise_loudness(song)
-        song.is_normalized = True
+        converter.equalise_loudness(song, swap_now)
+        song.is_normalized = swap_now
         session.commit()
 
 
@@ -45,6 +45,11 @@ def download(song_id: int):
         song.is_downloaded = True
         song.date_downloaded = datetime.now()
 
-        # TODO: Check if able to normalize
+        statement = select(Guild).where(Guild.now_playing_song_id == song.id)
+        result = await session.execute(statement)
+        now_playing = result.scalar()
+        
+        equalise_loudness.delay(song.id, swap_now=now_playing is None)
 
+        song.has_download_task = False
         session.commit()

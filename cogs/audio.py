@@ -145,26 +145,43 @@ class AudioCog(commands.Cog, name='Audio'):
                 await session.commit()
                 await session.refresh(song)
             
-            if not song.is_downloaded:
-                try:
-                    download.delay(song.id)
-                except Exception as e:
-                    print(e)
-            elif not song.is_normalized:
-                equalise_loudness.delay(song.id)
-            
-            guild = await Guild.ensure_guild(session=session, id_=ctx.guild.id, name=ctx.guild.name)
-            queue = guild.add_song_to_queue(session, song)
-            result = await session.execute(
-                select(func.max(Queue.order_id)).where(Queue.guild_id == queue.guild_id)
-            )
-            max_order_id = result.scalar_one_or_none()
-            queue.order_id = max_order_id + 1 if max_order_id else 1
-            await session.commit()
-            
-            await ctx.send(f'Added to queue: {song.link}')
+            await self.do_play(song, session)
 
-        await player.play(ctx)
+    @commands.hybrid_command()
+    async def playf(self, ctx: commands.context, *, name: str):
+        """ Play a youtube music video in a voice channel. """
+        await ctx.typing()
+
+        async with self.bot.session as session:
+            statement = select(Favourite).where(Favourite.name == name, Favourite.user_id == ctx.author.id).options(selectinload(Favourite.song))
+            result = await session.execute(statement)
+            favourite = result.scalar()
+            if not favourite:
+                await ctx.send(f'Favourite not found.')
+                return
+            song = favourite.song
+            
+            await self.do_play(song, session)
+
+    @commands.hybrid_command()
+    async def playlist(self, ctx: commands.context, *, link: str):
+        """ Play a youtube music video in a voice channel. """
+        await ctx.typing()
+
+        if not is_youtube_playlist_link(link):
+            await ctx.send('Not a valid youtube playlist link.')
+            return
+
+        async with self.bot.session as session:
+            for song_dict in playlist:
+                song = await Song.get_by_reference(session, reference)
+                if song is None:
+                    song = Song(reference=reference)
+                    session.add(song)
+                    await session.commit()
+                    await session.refresh(song)
+            
+            await self.do_play(song, session)
 
     @commands.hybrid_command(aliases=['np', 'now', 'playing'])
     async def now_playing(self, ctx: commands.context):
@@ -243,41 +260,6 @@ class AudioCog(commands.Cog, name='Audio'):
 
         await ctx.send(f'```{lines}```')
 
-    @commands.hybrid_command()
-    async def playf(self, ctx: commands.context, *, name: str):
-        """ Play a youtube music video in a voice channel. """
-        await ctx.typing()
-
-        async with self.bot.session as session:
-            statement = select(Favourite).where(Favourite.name == name, Favourite.user_id == ctx.author.id).options(selectinload(Favourite.song))
-            result = await session.execute(statement)
-            favourite = result.scalar()
-            if not favourite:
-                await ctx.send(f'Favourite not found.')
-                return
-            song = favourite.song
-            
-            if not song.is_downloaded:
-                try:
-                    download.delay(song.id)
-                except Exception as e:
-                    print(e)
-            elif not song.is_normalized:
-                equalise_loudness.delay(song.id)
-            
-            guild = await Guild.ensure_guild(session=session, id_=ctx.guild.id, name=ctx.guild.name)
-            queue = guild.add_song_to_queue(session, song)
-            result = await session.execute(
-                select(func.max(Queue.order_id)).where(Queue.guild_id == queue.guild_id)
-            )
-            max_order_id = result.scalar_one_or_none()
-            queue.order_id = max_order_id + 1 if max_order_id else 1
-            await session.commit()
-            
-            await ctx.send(f'Added to queue: {song.link}')
-
-        await player.play(ctx)
-
     @commands.hybrid_group(invoke_without_command=False)
     async def favourite(self, ctx):
         await ctx.send('Use playf to play a favourite.')
@@ -347,6 +329,7 @@ class AudioCog(commands.Cog, name='Audio'):
     @connect.before_invoke
     @play.before_invoke
     @playf.before_invoke
+    @playlist.before_invoke
     async def ensure_voice(self, ctx):
         if ctx.voice_client is None:
             if ctx.author.voice:
@@ -366,6 +349,27 @@ class AudioCog(commands.Cog, name='Audio'):
         elif not ctx.author.voice:
             await ctx.send("You are not connected to a voice channel.")
             raise commands.CommandError("Author not connected to a voice channel.")
+
+    async def do_play(self, song, session):
+        if not song.is_downloaded:
+            song.has_download_task = True
+            await session.commit()
+            download.delay(song.id)
+        elif not song.is_normalized:
+            equalise_loudness.delay(song.id)
+        
+        guild = await Guild.ensure_guild(session=session, id_=ctx.guild.id, name=ctx.guild.name)
+        queue = guild.add_song_to_queue(session, song)
+        result = await session.execute(
+            select(func.max(Queue.order_id)).where(Queue.guild_id == queue.guild_id)
+        )
+        max_order_id = result.scalar_one_or_none()
+        queue.order_id = max_order_id + 1 if max_order_id else 1
+        await session.commit()
+        
+        await ctx.send(f'Added to queue: `{song}`')
+
+        await player.play(ctx)
 
 
 async def setup(bot):

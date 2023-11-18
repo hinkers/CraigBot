@@ -5,7 +5,7 @@ from sqlalchemy import (BigInteger, Boolean, Column, Date, DateTime,
                         ForeignKey, Integer, String, select)
 from sqlalchemy.orm import relationship
 
-from database.database import Base, get_engine
+from database.database import Base
 
 
 class Song(Base):
@@ -23,6 +23,7 @@ class Song(Base):
     thumbnail = Column(String, nullable=True)
     is_normalized = Column(Boolean, default=False)
     is_downloaded = Column(Boolean, default=False)
+    has_download_task = Column(Boolean, default=False)
     date_downloaded = Column(Date, nullable=True)
     date_last_played = Column(Date, nullable=True)
 
