@@ -31,6 +31,7 @@ app = Celery(
 
 @app.task
 def equalise_loudness(song_id: int, swap_now=True):
+    return
     with Session() as session:
         song = session.get(Song, song_id)
         converter.equalise_loudness(song, swap_now)

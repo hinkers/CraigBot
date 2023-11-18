@@ -17,7 +17,7 @@ function run_command() {
         pkill -f 'celery -A audio.tasks worker'
 
         # Start the Celery worker process with nice
-        nice -n 10 celery -A audio.tasks worker &
+        celery -A audio.tasks worker &
 
         # Start Craig
         python app.py
