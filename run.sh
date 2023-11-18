@@ -13,13 +13,11 @@ function run_command() {
         # Install the requirements
         pip install -r requirements.txt
 
-        # Check if the celery worker process is running
-        pgrep -f 'celery -A audio.tasks worker' > /dev/null
+        # Kill any existing celery worker processes
+        pkill -f 'celery -A audio.tasks worker'
 
-        # If the check returns non-zero, the process is not running, so start it with nice
-        if [ $? -ne 0 ]; then
-            nice -n 10 celery -A audio.tasks worker &
-        fi
+        # Start the Celery worker process with nice
+        nice -n 10 celery -A audio.tasks worker &
 
         # Start Craig
         python app.py
