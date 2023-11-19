@@ -428,7 +428,7 @@ class AudioCog(commands.Cog, name='Audio'):
         queue.order_id = max_order_id + 1 if max_order_id else 1
         await session.commit()
         
-        await ctx.send(f'Added to queue: `{song}`')
+        await ctx.send(f'Added to queue: {song}')
 
         await player.play(ctx)
 
