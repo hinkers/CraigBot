@@ -44,7 +44,7 @@ def equalise_loudness(song: Song, swap_now) -> None:
         normalized_audio = audio + change_in_volume
 
         # Export the modified audio (in .webm format)
-        normalized_audio.export(song.full_normalized_filename, format='webm')
+        normalized_audio.export(song.full_normalized_filename, format='webm', parameters=["-threads", "1"])
 
     if swap_now:
         os.remove(song.full_filename)
