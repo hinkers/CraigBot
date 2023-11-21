@@ -90,7 +90,10 @@ class AudioCog(commands.Cog, name='Audio'):
             
         if self.current_status != new_status:
             await self.bot.wait_until_ready()
-            await self.bot.change_presence(activity=discord.Game(name=new_status))
+            if new_status is None:
+                await self.bot.change_presence(status=None)
+            else:
+                await self.bot.change_presence(activity=discord.Game(name=new_status))
             self.current_status = new_status
 
     @tasks.loop(time=time)
