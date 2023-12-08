@@ -87,12 +87,12 @@ class YTDLSource(discord.PCMVolumeTransformer):
                 return False
             song.filename, song.extension = ydl.prepare_filename(info).rsplit('.', 1)
             song.filename = song.filename.rsplit('/')[-1]
-            song.title = info['title']
-            song.channel = info['channel']
-            song.duration = info['duration']
-            song.view_count = info['view_count']
-            song.like_count = info['like_count']
-            song.thumbnail = info['thumbnail']
+            song.title = info.get('title')
+            song.channel = info.get('channel')
+            song.duration = info.get('duration')
+            song.view_count = info.get('view_count')
+            song.like_count = info.get('like_count')
+            song.thumbnail = info.get('thumbnail')
             ydl.extract_info(song.link, download=True)
         
         if song.extension != 'webm':

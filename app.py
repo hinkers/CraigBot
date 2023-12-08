@@ -20,6 +20,7 @@ def main():
     try:
         intents = discord.Intents.default()
         intents.message_content = True
+        intents.members = True
         client = CraigBot(debug=debug, command_prefix='!', intents=intents)
         if debug:
             open('discord.log', 'w').close()

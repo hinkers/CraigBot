@@ -33,5 +33,6 @@ class ChatbotCog(commands.Cog):
             await message.channel.send(response)
 
 
-def setup(bot):
-    bot.add_cog(ChatbotCog(bot))
+async def setup(bot):
+    return
+    await bot.add_cog(ChatbotCog(bot))
