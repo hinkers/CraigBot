@@ -16,9 +16,6 @@ from audio.converter import convert_to_webm, equalise_loudness
 if TYPE_CHECKING:
     from database.audio import Song
 
-# Suppress noise about console usage from errors
-yt_dlp.utils.bug_reports_message = lambda: ''
-
 ytdl_download = {
     'cookiefile': '/home/nathan/CraigV2/cookies.txt',
     'format': 'bestaudio[ext=webm]/best[ext=webm]/best',
@@ -27,9 +24,9 @@ ytdl_download = {
     'noplaylist': True,
     'nocheckcertificate': True,
     'ignoreerrors': False,
-    'logtostderr': False,
-    'quiet': True,
-    'no_warnings': True,
+    'quiet': False,
+    'no_warnings': False,
+    'logtostderr': True,
     'default_search': 'auto',
     'source_address': '0.0.0.0',
     'usenetrc': True
@@ -41,9 +38,9 @@ ytdl_info_only = {
     'restrictfilenames': True,
     'nocheckcertificate': True,
     'ignoreerrors': False,
-    'logtostderr': False,
-    'quiet': True,
-    'no_warnings': True,
+    'quiet': False,
+    'no_warnings': False,
+    'logtostderr': True,
     'default_search': 'auto',
     'source_address': '0.0.0.0',
     'usenetrc': True,
