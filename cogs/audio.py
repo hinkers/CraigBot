@@ -118,8 +118,8 @@ class AudioCog(commands.Cog, name='Audio'):
             for song in result.scalars():
                 try:
                     # If the main song file exists, delete it
-                    if os.path.isfile(song.file_path):
-                        os.remove(song.file_path)
+                    if os.path.isfile(song.full_filename):
+                        os.remove(song.full_filename)
 
                     # If the normalized version of the song exists, delete it
                     if os.path.isfile(song.full_normalized_filename):
@@ -141,7 +141,7 @@ class AudioCog(commands.Cog, name='Audio'):
         """ Makes the bot join the current channel. """
         await ctx.send(f'Joined {ctx.author.voice.channel.name}')
 
-    @commands.hybrid_command(aliases=['fuckoff', 'dc', 'kick'])
+    @commands.hybrid_command(aliases=['fuckoff', 'dc', 'kick', 'leave'])
     async def disconnect(self, ctx: commands.context):
         """ Makes the bot leave the current channel. """        
         await ctx.voice_client.disconnect()
@@ -159,7 +159,7 @@ class AudioCog(commands.Cog, name='Audio'):
             return
         await ctx.send('Skipped.')
 
-    @commands.hybrid_command()
+    @commands.hybrid_command(aliases=['paly'])
     async def play(self, ctx: commands.context, *, query: str):
         """ Play a youtube music video in a voice channel. """
         await ctx.typing()

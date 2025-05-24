@@ -174,3 +174,4 @@ cython_debug/
 /dev.env
 /prod.env
 /data/audio_cache
+/data/tags.json
