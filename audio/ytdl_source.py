@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from database.audio import Song
 
 ytdl_download = {
-    'cookiefile': '/home/nathan/CraigV2/cookies.txt',
+    'cookiefile': 'cookies.txt',
     'format': 'bestaudio[ext=webm]/best[ext=webm]/best',
     'outtmpl': os.path.join('data', 'audio_cache', '%(extractor)s-%(id)s.%(ext)s'),
     'restrictfilenames': True,
@@ -33,7 +33,7 @@ ytdl_download = {
 }
 
 ytdl_info_only = {
-    'cookiefile': '/home/nathan/CraigV2/cookies.txt',
+    'cookiefile': 'cookies.txt',
     'format': 'bestaudio[ext=webm]/best[ext=webm]/best',
     'restrictfilenames': True,
     'nocheckcertificate': True,
