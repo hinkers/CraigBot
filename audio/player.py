@@ -8,7 +8,7 @@ from sqlalchemy.orm import selectinload, sessionmaker
 
 from audio.tasks import download
 from audio.ytdl_source import YTDLSource, ffmpeg_options
-from database.audio import Guild, Queue
+from database.audio import Guild, Queue, Song
 from database.database import get_engine
 
 Session = sessionmaker(autocommit=False, autoflush=False, expire_on_commit=False, bind=get_engine(), class_=AsyncSession)
@@ -68,7 +68,7 @@ async def async_next_song(ctx, error=None):
         guild.now_playing_song_id = song.id
         await session.commit()
 
-        if not song.is_downloaded and not song.has_download_task:
+        if (not song.is_downloaded or song.download_error is not None) and not song.has_download_task:
             song.has_download_task = True
             await session.commit()
             download.delay(song.id)
@@ -79,8 +79,13 @@ async def async_next_song(ctx, error=None):
 
             if song.download_error is not None:
                 await ctx.send(f'Download failed for {song}\n{song.download_error}')
-                next_song(ctx)
-                return
+                song = Song.get_random(session)
+                if song is None:
+                    next_song(ctx)
+                    return
+        
+        song.download_error = None
+        await session.commit()
 
         voice_client.play(
             YTDLSource(FFmpegPCMAudio(song.full_filename, **ffmpeg_options), data=song.info),

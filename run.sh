@@ -11,7 +11,7 @@ function run_command() {
         source venv/bin/activate
 
         # Install the requirements
-        pip install -Ur requirements.txt
+        pip-review --auto
 
         # Kill any existing celery worker processes
         pkill -f 'celery -A audio.tasks worker'

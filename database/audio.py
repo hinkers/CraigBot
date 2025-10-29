@@ -2,7 +2,7 @@ import os
 from typing import Union
 
 from sqlalchemy import (BigInteger, Boolean, Column, Date, DateTime,
-                        ForeignKey, Integer, String, select)
+                        ForeignKey, Integer, String, select, func, or_)
 from sqlalchemy.orm import relationship
 
 from database.database import Base
@@ -60,6 +60,22 @@ class Song(Base):
     @classmethod
     async def get_by_reference(cls, session, reference: str) -> Union['Song', None]:
         statement = select(cls).where(cls.reference == reference)
+        result = await session.execute(statement)
+        return result.scalar()
+    
+    @classmethod
+    async def get_random(cls, session) -> Union['Song', None]:
+        random_func = func.random() if session.bind.dialect.name != 'mysql' else func.rand()
+
+        statement = (
+            select(cls)
+            .where(
+                cls.is_downloaded == True,
+                or_(cls.download_error == None, cls.download_error == "")
+            )
+            .order_by(random_func)
+            .limit(1)
+        )
         result = await session.execute(statement)
         return result.scalar()
 
