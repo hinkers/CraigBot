@@ -68,7 +68,8 @@ async def async_next_song(ctx, error=None):
         guild.now_playing_song_id = song.id
         await session.commit()
 
-        if (not song.is_downloaded or song.download_error is not None) and not song.has_download_task:
+        if (not song.is_downloaded or song.download_error is not None):
+            song.delete_files()
             song.has_download_task = True
             await session.commit()
             download.delay(song.id)

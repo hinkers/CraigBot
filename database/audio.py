@@ -1,4 +1,5 @@
 import os
+import glob
 from typing import Union
 
 from sqlalchemy import (BigInteger, Boolean, Column, Date, DateTime,
@@ -43,11 +44,15 @@ class Song(Base):
 
     @property
     def full_filename(self) -> str:
-        return os.path.join('data', 'audio_cache', f'{self.filename}.{self.extension}')
+        if self.filename is not None and self.extension is not None:
+            return os.path.join('data', 'audio_cache', f'{self.filename}.{self.extension}')
+        return find_yt_dlp_file(os.path.join('data', 'audio_cache', f'youtube-{self.reference}'))
 
     @property
     def full_normalized_filename(self) -> str:
-        return os.path.join('data', 'audio_cache', f'{self.filename}_normalized.{self.extension}')
+        if self.filename is not None and self.extension is not None:
+            return os.path.join('data', 'audio_cache', f'{self.filename}_normalized.{self.extension}')
+        return find_yt_dlp_file(os.path.join('data', 'audio_cache', f'youtube-{self.reference}_normalized'))
 
     @property
     def full_filename_without_extension(self) -> str:
@@ -56,6 +61,18 @@ class Song(Base):
     @property
     def link(self) -> str:
         return f'https://www.youtube.com/watch?v={self.reference}'
+    
+    def delete_files(self) -> None:
+        if os.path.isfile(self.full_filename):
+            os.remove(self.full_filename)
+
+        # If the normalized version of the song exists, delete it
+        if os.path.isfile(self.full_normalized_filename):
+            os.remove(self.full_normalized_filename)
+
+        # Update the song record to reflect the deletion
+        self.is_downloaded = False
+        self.is_normalized = False
 
     @classmethod
     async def get_by_reference(cls, session, reference: str) -> Union['Song', None]:
@@ -135,3 +152,22 @@ class Favourite(Base):
     song_id = Column(Integer, ForeignKey('audio_song.id'), nullable=False)
 
     song = relationship("Song", backref="favourites")
+
+
+def find_yt_dlp_file(base_path):
+    # yt-dlp commonly uses these extensions
+    possible_exts = ["mp4", "mkv", "webm", "m4a", "mp3"]
+
+    # First look for finished files
+    for ext in possible_exts:
+        candidate = f"{base_path}.{ext}"
+        if os.path.exists(candidate):
+            return candidate
+
+    # If not found, check for partial downloads
+    for ext in possible_exts:
+        part_candidate = f"{base_path}.{ext}.part"
+        if os.path.exists(part_candidate):
+            return part_candidate
+    
+    return None

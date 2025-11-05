@@ -120,17 +120,7 @@ class AudioCog(commands.Cog, name='Audio'):
             # Iterate over the results
             for song in result.scalars():
                 try:
-                    # If the main song file exists, delete it
-                    if os.path.isfile(song.full_filename):
-                        os.remove(song.full_filename)
-
-                    # If the normalized version of the song exists, delete it
-                    if os.path.isfile(song.full_normalized_filename):
-                        os.remove(song.full_normalized_filename)
-
-                    # Update the song record to reflect the deletion
-                    song.is_downloaded = False
-                    song.is_normalized = False
+                    song.delete_files()
 
                 except Exception as e:
                     # Log any exceptions encountered during file deletion
