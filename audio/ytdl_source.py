@@ -11,14 +11,12 @@ import discord
 import yt_dlp
 from youtube_search import YoutubeSearch
 
-from audio.converter import convert_to_webm, equalise_loudness
-
 if TYPE_CHECKING:
     from database.audio import Song
 
 ytdl_download = {
     'cookiefile': 'cookies.txt',
-    'format': 'bestaudio[ext=webm]/best[ext=webm]/best',
+    'format': 'worstaudio/worst',
     'outtmpl': os.path.join('data', 'audio_cache', '%(extractor)s-%(id)s.%(ext)s'),
     'restrictfilenames': True,
     'noplaylist': True,
@@ -29,12 +27,16 @@ ytdl_download = {
     'logtostderr': True,
     'default_search': 'auto',
     'source_address': '0.0.0.0',
-    'usenetrc': True
+    'usenetrc': True,
+    'postprocessors': [{
+        'key': 'FFmpegExtractAudio',
+        'preferredcodec': 'mp3',
+    }]
 }
 
 ytdl_info_only = {
     'cookiefile': 'cookies.txt',
-    'format': 'bestaudio[ext=webm]/best[ext=webm]/best',
+    'format': 'worstaudio/worst',
     'restrictfilenames': True,
     'nocheckcertificate': True,
     'ignoreerrors': False,
@@ -98,12 +100,12 @@ class YTDLSource(discord.PCMVolumeTransformer):
         )
 
     def save_json(self):
-        filename = os.path.join('data', 'audio_cache', 'youtube-' + self.url.rsplit('=')[-1])
+        # filename = os.path.join('data', 'audio_cache', 'youtube-' + self.url.rsplit('=')[-1])
         data = self.as_dict()
-        with open(filename + '.json', 'w+') as f:
-            json.dump(data, f)
-        dt_epoch = datetime.now().timestamp()
-        os.utime(filename + '.webm', (dt_epoch, dt_epoch))
+        # with open(filename + '.json', 'w+') as f:
+        #     json.dump(data, f)
+        # dt_epoch = datetime.now().timestamp()
+        # os.utime(filename + '.webm', (dt_epoch, dt_epoch))
         return data['cached']
     
     @staticmethod
@@ -129,7 +131,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
         if not YTDLSource.is_youtube_link(link):
             return False
         filename = YTDLSource.get_cached_filename(link)
-        if os.path.isfile(filename + '.webm') and os.path.isfile(filename + '.json'):
+        if os.path.isfile(filename + '.mp3') and os.path.isfile(filename + '.json'):
             return True
         return False
 
@@ -138,7 +140,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
         if YTDLSource.is_youtube_link(filename):
             filename =  YTDLSource.get_cached_filename(filename)
         with open(filename + '.json', 'r') as f:
-            return cls(discord.FFmpegPCMAudio(filename + '.webm', **ffmpeg_options), data=json.load(f))
+            return cls(discord.FFmpegPCMAudio(filename + '.mp3', **ffmpeg_options), data=json.load(f))
 
     @classmethod
     async def get_info(cls, query):
@@ -172,11 +174,12 @@ class YTDLSource(discord.PCMVolumeTransformer):
     def download(song: Song) -> bool:
         with yt_dlp.YoutubeDL(ytdl_download) as ydl:
             try:
-                info = ydl.extract_info(song.link)
+                info = ydl.extract_info(song.link, download=True)
             except yt_dlp.DownloadError as e:
                 song.download_error = str(e)
                 return False
             song.filename, song.extension = ydl.prepare_filename(info).rsplit('.', 1)
+            song.extension = 'mp3'
             song.filename = song.filename.rsplit('/')[-1]
             song.title = info.get('title')
             song.channel = info.get('channel')
@@ -184,9 +187,10 @@ class YTDLSource(discord.PCMVolumeTransformer):
             song.view_count = info.get('view_count')
             song.like_count = info.get('like_count')
             song.thumbnail = info.get('thumbnail')
-            ydl.extract_info(song.link, download=True)
+            # song.delete_files()
+            # ydl.extract_info(song.link, download=True)
         
-        if song.extension != 'webm':
-            convert_to_webm(song)
+        # if song.extension != 'webm':
+        #     convert_to_webm(song)
         
         return True

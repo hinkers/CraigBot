@@ -291,7 +291,7 @@ class AudioCog(commands.Cog, name='Audio'):
         directory_path = os.path.join('data', 'audio_cache')
 
         files_count = len(os.listdir(directory_path))
-        webm_count = len(glob.glob(os.path.join(directory_path, '*.webm')))
+        mp3_count = len(glob.glob(os.path.join(directory_path, '*.mp3')))
         
         total_size = sum(os.path.getsize(os.path.join(directory_path, f)) for f in os.listdir(directory_path) if os.path.isfile(os.path.join(directory_path, f))) / (1024 ** 2)
 
@@ -306,7 +306,7 @@ class AudioCog(commands.Cog, name='Audio'):
 
         lines = '\n'.join([
             f'Total files: {files_count}',
-            f'Audio files: {webm_count}',
+            f'Audio files: {mp3_count}',
             f'Total file size: {total_size:.2f} MiB',
             f'Oldest file: {oldest_date_str}'
         ])
@@ -405,12 +405,12 @@ class AudioCog(commands.Cog, name='Audio'):
             raise commands.CommandError("Author not connected to a voice channel.")
 
     async def do_play(self, ctx, song, session):
-        if not song.is_downloaded:
-            song.has_download_task = True
-            await session.commit()
-            download.delay(song.id)
-        elif not song.is_normalized:
-            equalise_loudness.delay(song.id)
+        # if not song.is_downloaded:
+        #     song.has_download_task = True
+        #     await session.commit()
+        #     download.delay(song.id)
+        # elif not song.is_normalized:
+        #     equalise_loudness.delay(song.id)
         
         guild = await Guild.ensure_guild(session=session, id_=ctx.guild.id, name=ctx.guild.name)
         queue = guild.add_song_to_queue(session, song)

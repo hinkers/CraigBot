@@ -17,6 +17,7 @@ REFERENCE_SAMPLE_RATE = 48000
 
 
 def convert_to_webm(song: Song) -> None:
+    return
     audio = AudioSegment.from_file(song.full_filename)
     output_format = "webm"
     audio.export(song.full_filename_without_extension + '.webm', format=output_format)
@@ -25,6 +26,7 @@ def convert_to_webm(song: Song) -> None:
 
 
 def equalise_loudness(song: Song, swap_now) -> None:
+    return
     # Check if the normalized file already exists
     if not os.path.isfile(song.full_normalized_filename):
         # Load the audio file (assumed to be in .webm format)

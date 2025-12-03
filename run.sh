@@ -14,10 +14,10 @@ function run_command() {
         pip-review --auto
 
         # Kill any existing celery worker processes
-        pkill -f 'celery -A audio.tasks worker'
+        pkill -f 'celery worker'
 
         # Start the Celery worker process with nice
-        celery -A audio.tasks worker &
+        celery -A audio.tasks worker --concurrency=1 &
 
         # Start Craig
         python app.py

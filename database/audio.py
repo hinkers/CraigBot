@@ -44,15 +44,15 @@ class Song(Base):
 
     @property
     def full_filename(self) -> str:
-        if self.filename is not None and self.extension is not None:
-            return os.path.join('data', 'audio_cache', f'{self.filename}.{self.extension}')
-        return find_yt_dlp_file(os.path.join('data', 'audio_cache', f'youtube-{self.reference}'))
+        # if self.filename is not None and self.extension is not None:
+        return os.path.join('data', 'audio_cache', f'{self.filename}.{self.extension}')
+        # return find_yt_dlp_file(os.path.join('data', 'audio_cache', f'youtube-{self.reference}'))
 
     @property
     def full_normalized_filename(self) -> str:
-        if self.filename is not None and self.extension is not None:
-            return os.path.join('data', 'audio_cache', f'{self.filename}_normalized.{self.extension}')
-        return find_yt_dlp_file(os.path.join('data', 'audio_cache', f'youtube-{self.reference}_normalized'))
+        # if self.filename is not None and self.extension is not None:
+        return os.path.join('data', 'audio_cache', f'{self.filename}_normalized.{self.extension}')
+        # return find_yt_dlp_file(os.path.join('data', 'audio_cache', f'youtube-{self.reference}_normalized'))
 
     @property
     def full_filename_without_extension(self) -> str:
@@ -156,7 +156,7 @@ class Favourite(Base):
 
 def find_yt_dlp_file(base_path):
     # yt-dlp commonly uses these extensions
-    possible_exts = ["mp4", "mkv", "webm", "m4a", "mp3"]
+    possible_exts = ["mp3", "webm", "mp4", "mkv", "webm", "m4a"]
 
     # First look for finished files
     for ext in possible_exts:
