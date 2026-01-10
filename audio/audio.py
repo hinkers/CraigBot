@@ -10,6 +10,12 @@ def extract_youtube_reference_from_url(url: str) -> Union[str, None]:
     parsed_url = urlparse(url)
 
     if "youtube.com" in parsed_url.netloc:
+        # Handle /video/ format: https://www.youtube.com/video/VIDEO_ID
+        video_path_match = re.search(r'/video/([a-zA-Z0-9_-]+)', parsed_url.path)
+        if video_path_match:
+            return video_path_match.group(1)
+
+        # Handle watch?v= format: https://www.youtube.com/watch?v=VIDEO_ID
         parsed_query = parse_qs(parsed_url.query)
         return parsed_query.get("v", [None])[0]
 
