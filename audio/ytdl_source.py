@@ -117,6 +117,12 @@ class YTDLSource(discord.PCMVolumeTransformer):
     
     @staticmethod
     def get_cached_filename(link):
+        # Handle /video/ format: https://www.youtube.com/video/VIDEO_ID
+        video_path_match = re.search(r'/video/([a-zA-Z0-9_-]+)', link)
+        if video_path_match:
+            return os.path.join('data', 'audio_cache', 'youtube-' + video_path_match.group(1))
+
+        # Handle watch?v= format: https://www.youtube.com/watch?v=VIDEO_ID
         if '?' not in link:
             return ''
         query_string = link.split('?')[1]
