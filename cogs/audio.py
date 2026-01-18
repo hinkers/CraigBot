@@ -153,8 +153,12 @@ class AudioCog(commands.Cog, name='Audio'):
         await ctx.send('Skipped.')
 
     @commands.hybrid_command(aliases=['paly'])
-    async def play(self, ctx: commands.context, *, query: str):
+    async def play(self, ctx: commands.context, *, query: str = None):
         """ Play a youtube music video in a voice channel. """
+        if query is None:
+            await ctx.send('Please provide a YouTube URL or search query.')
+            return
+
         await ctx.typing()
 
         try:
