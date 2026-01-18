@@ -178,25 +178,43 @@ class YTDLSource(discord.PCMVolumeTransformer):
 
     @staticmethod
     def download(song: Song) -> bool:
-        with yt_dlp.YoutubeDL(ytdl_download) as ydl:
-            try:
-                info = ydl.extract_info(song.link, download=True)
-            except yt_dlp.DownloadError as e:
-                song.download_error = str(e)
-                return False
-            song.filename, song.extension = ydl.prepare_filename(info).rsplit('.', 1)
-            song.extension = 'mp3'
-            song.filename = song.filename.rsplit('/')[-1]
-            song.title = info.get('title')
-            song.channel = info.get('channel')
-            song.duration = info.get('duration')
-            song.view_count = info.get('view_count')
-            song.like_count = info.get('like_count')
-            song.thumbnail = info.get('thumbnail')
-            # song.delete_files()
-            # ydl.extract_info(song.link, download=True)
-        
-        # if song.extension != 'webm':
-        #     convert_to_webm(song)
-        
+        max_retries = 3
+        for attempt in range(max_retries):
+            with yt_dlp.YoutubeDL(ytdl_download) as ydl:
+                try:
+                    info = ydl.extract_info(song.link, download=True)
+                except yt_dlp.DownloadError as e:
+                    song.download_error = str(e)
+                    return False
+                song.filename, song.extension = ydl.prepare_filename(info).rsplit('.', 1)
+                song.extension = 'mp3'
+                song.filename = song.filename.rsplit('/')[-1]
+                song.title = info.get('title')
+                song.channel = info.get('channel')
+                song.duration = info.get('duration')
+                song.view_count = info.get('view_count')
+                song.like_count = info.get('like_count')
+                song.thumbnail = info.get('thumbnail')
+
+            # Check if the downloaded file is empty
+            if os.path.isfile(song.full_filename):
+                file_size = os.path.getsize(song.full_filename)
+                if file_size == 0:
+                    # Delete the empty file and retry
+                    os.remove(song.full_filename)
+                    if attempt < max_retries - 1:
+                        continue
+                    else:
+                        song.download_error = "ERROR: The downloaded file is empty after 3 attempts"
+                        return False
+                # File is not empty, download successful
+                return True
+            else:
+                # File doesn't exist
+                if attempt < max_retries - 1:
+                    continue
+                else:
+                    song.download_error = "ERROR: Downloaded file not found after 3 attempts"
+                    return False
+
         return True
