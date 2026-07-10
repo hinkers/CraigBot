@@ -153,8 +153,12 @@ class AudioCog(commands.Cog, name='Audio'):
         await ctx.send('Skipped.')
 
     @commands.hybrid_command(aliases=['paly'])
-    async def play(self, ctx: commands.context, *, query: str):
+    async def play(self, ctx: commands.context, *, query: str = None):
         """ Play a youtube music video in a voice channel. """
+        if query is None:
+            await ctx.send('Please provide a YouTube URL or search query.')
+            return
+
         await ctx.typing()
 
         try:
@@ -186,7 +190,20 @@ class AudioCog(commands.Cog, name='Audio'):
                 await ctx.send(f'Favourite not found.')
                 return
             song = favourite.song
-            
+
+            await self.do_play(ctx, song, session)
+
+    @commands.hybrid_command()
+    async def rplay(self, ctx: commands.context):
+        """ Play a random song from the database. """
+        await ctx.typing()
+
+        async with self.bot.session as session:
+            song = await Song.get_random(session)
+            if song is None:
+                await ctx.send('No downloaded songs available in the database.')
+                return
+
             await self.do_play(ctx, song, session)
 
     @commands.hybrid_command()
@@ -383,6 +400,7 @@ class AudioCog(commands.Cog, name='Audio'):
     @connect.before_invoke
     @play.before_invoke
     @playf.before_invoke
+    @rplay.before_invoke
     @playlist.before_invoke
     async def ensure_voice(self, ctx):
         if ctx.voice_client is None:

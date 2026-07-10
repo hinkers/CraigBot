@@ -21,6 +21,14 @@ def get_engine(async_=True):
 
     if async_:
         return create_async_engine(
-            f'postgresql+asyncpg://{username}:{password}@localhost:5432/{database_name}')
+            f'postgresql+asyncpg://{username}:{password}@localhost:5432/{database_name}',
+            pool_pre_ping=True,
+            pool_recycle=3600,
+            pool_size=10,
+            max_overflow=20
+        )
     return create_engine(
-        f'postgresql://{username}:{password}@localhost:5432/{database_name}')
+        f'postgresql://{username}:{password}@localhost:5432/{database_name}',
+        pool_pre_ping=True,
+        pool_recycle=3600
+    )
