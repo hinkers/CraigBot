@@ -3,19 +3,16 @@ from datetime import datetime
 
 from discord import FFmpegPCMAudio
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload, sessionmaker
+from sqlalchemy.orm import selectinload
 
 from audio.tasks import download
 from audio.ytdl_source import YTDLSource, ffmpeg_options
 from database.audio import Guild, Queue, Song
-from database.database import get_engine
-
-Session = sessionmaker(autocommit=False, autoflush=False, expire_on_commit=False, bind=get_engine(), class_=AsyncSession)
+from database.database import get_sessionmaker
 
 
 async def play(ctx):
-    async with Session() as session:
+    async with get_sessionmaker()() as session:
         guild = await Guild.ensure_guild(session, ctx.guild.id, ctx.guild.name)
     if guild.is_playing:
         return
@@ -46,7 +43,7 @@ async def async_next_song(ctx, error=None):
     if error:
         print(error)
 
-    async with Session() as session:        
+    async with get_sessionmaker()() as session:        
         voice_client = ctx.voice_client
         guild = await Guild.ensure_guild(session, ctx.guild.id, ctx.guild.name)
 

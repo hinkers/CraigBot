@@ -5,12 +5,10 @@ from random import SystemRandom
 
 import discord
 from discord.ext import commands
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from dotenv import load_dotenv
-from database.database import Base, get_engine
-
-Session = async_sessionmaker(autocommit=False, autoflush=False, expire_on_commit=False, bind=get_engine(), class_=AsyncSession)
+from database.database import Base, get_engine, get_sessionmaker
 
 
 class CraigBot(commands.Bot):
@@ -28,7 +26,7 @@ class CraigBot(commands.Bot):
     
     @property
     def session(self) -> AsyncSession:
-        return Session()
+        return get_sessionmaker()()
 
     @property
     def craigmoment(self):

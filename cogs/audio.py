@@ -26,7 +26,10 @@ class AudioCog(commands.Cog, name='Audio'):
     def __init__(self, bot):
         self.bot = bot
         self.current_status = None
-        bot.loop.create_task(self.initialize_tasks())
+
+    async def cog_load(self) -> None:
+        # Runs inside the event loop when the cog is added; bot.loop isn't usable before login
+        self._init_task = asyncio.create_task(self.initialize_tasks())
 
     async def initialize_tasks(self) -> None:
         await self.bot.wait_until_ready()
