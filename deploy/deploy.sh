@@ -11,8 +11,24 @@ main() {
     cd "$app_dir"
 
     if [[ "${1:-}" != "--pulled" ]]; then
-        echo "==> Pulling latest code"
-        git pull --ff-only
+        # CI passes the commit that passed its tests as the SSH command; by hand, take the latest
+        local sha="${SSH_ORIGINAL_COMMAND:-}"
+        if [[ -n "$sha" ]]; then
+            if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then
+                echo "Refusing to deploy: expected a commit SHA, got '$sha'" >&2
+                exit 1
+            fi
+            echo "==> Fetching tested commit $sha"
+            git fetch origin
+            if ! git merge-base --is-ancestor "$sha" origin/Main; then
+                echo "Refusing to deploy: $sha is not on origin/Main" >&2
+                exit 1
+            fi
+            git merge --ff-only "$sha"
+        else
+            echo "==> Pulling latest code"
+            git pull --ff-only
+        fi
         # Continue with the freshly pulled copy of this script
         exec bash "$app_dir/deploy/deploy.sh" --pulled
     fi

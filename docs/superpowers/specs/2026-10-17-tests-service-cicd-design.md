@@ -175,6 +175,9 @@ Found while reading the code for the implementation plan. These override the sec
 - **`deploy/install-services.sh`** templates the units (`__USER__`, `__APP_DIR__`), installs a
   `visudo`-validated sudoers rule for exactly `/usr/bin/systemctl restart craigbot-celery craigbot`,
   and adds the user to `systemd-journal` so `deploy.sh` can print logs without sudo.
+- **CI deploys exactly the tested commit.** The workflow passes `$GITHUB_SHA` as the SSH command;
+  `deploy.sh` reads it from `SSH_ORIGINAL_COMMAND`, requires a 40-hex SHA that is on `origin/Main`,
+  and fast-forwards to it. A deploy by hand (no SHA) still uses `git pull --ff-only`. (From final review.)
 - **`deploy.sh` re-executes itself after `git pull`** so the rest of a deploy runs the freshly pulled
   script.
 - **The local test Postgres is on port 5433** (to avoid clashing with a dev Postgres on 5432).

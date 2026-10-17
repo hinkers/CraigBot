@@ -1,9 +1,11 @@
 # Deploying CraigBot
 
 Pushes to `Main` run the test suite on GitHub Actions. If it passes, the `deploy` job SSHes into the
-server, and the deploy key's forced command runs `deploy/deploy.sh`. That script:
+server, and the deploy key's forced command runs `deploy/deploy.sh` with the tested commit's SHA.
+That script:
 
-1. `git pull --ff-only` (fails if the server checkout has local changes or has diverged)
+1. Fast-forwards the checkout to exactly that commit (never a newer, untested one). Run by hand
+   with no SHA, it does `git pull --ff-only` instead.
 2. `venv/bin/pip install -r requirements.txt`
 3. `sudo systemctl restart craigbot-celery craigbot`
 4. Waits ~20s and checks that both services are active with a stable PID. If not, it prints their
@@ -26,7 +28,8 @@ Run these on the server as the user that owns the bot checkout (the one that cur
    ```bash
    screen -ls                      # find the session running run.sh
    screen -S <session> -X quit     # stops run.sh and the bot
-   pkill -f 'celery worker' || true
+   pkill -f 'celery -A audio.tasks worker' || true
+   pgrep -af 'celery -A audio.tasks worker'   # must print nothing; old workers would run stale code
    ```
 4. **Start the services:**
    ```bash
@@ -77,5 +80,10 @@ Then re-run the latest failed `CI` workflow (**Actions → CI → Re-run jobs**)
 - **Restart:** `sudo systemctl restart craigbot-celery craigbot` (or `!restart` in Discord)
 - **Deploy by hand:** `~/CraigBot/deploy/deploy.sh`
 - **Roll back:** `git revert <sha>` and push to `Main`. The revert deploys like any other commit.
-- **Deploy failed with "Not possible to fast-forward":** the server checkout has local changes (often
-  `cookies.txt`). Check them with `git status` on the server, then commit or discard them.
+- **Deploy failed with "Your local changes ... would be overwritten":** the server checkout has local
+  changes. This is usually `cookies.txt`, which yt-dlp rewrites, so it clashes with any commit that
+  updates it. Check with `git status` on the server, then keep or discard the change
+  (`git checkout -- cookies.txt`) and re-run the deploy. To stop this for good, untrack `cookies.txt`
+  (`git rm --cached cookies.txt` and add it to `.gitignore`) and keep the file only on the server.
+- **Deploy failed with "Not possible to fast-forward":** the server checkout has its own commits.
+  Inspect them with `git log origin/Main..HEAD` on the server.

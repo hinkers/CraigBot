@@ -68,7 +68,8 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
 
-      # The deploy key is restricted on the server to run deploy/deploy.sh, so no remote command is passed
+      # The deploy key is restricted on the server to run deploy/deploy.sh, which receives the tested
+      # commit's SHA (as SSH_ORIGINAL_COMMAND) and deploys exactly that commit
       - name: Deploy
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
@@ -77,4 +78,4 @@ jobs:
         run: |
           ssh -i ~/.ssh/deploy_key -p "${DEPLOY_PORT:-22}" \
             -o StrictHostKeyChecking=yes -o BatchMode=yes \
-            "$DEPLOY_USER@$DEPLOY_HOST"
+            "$DEPLOY_USER@$DEPLOY_HOST" "$GITHUB_SHA"

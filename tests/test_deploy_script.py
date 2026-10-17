@@ -19,7 +19,10 @@ def write_stub(directory, name, body):
     path.chmod(0o755)
 
 
-def run_deploy(tmp_path, *, git_exit=0, pids=('100', '100'), active=True):
+SHA = 'a' * 40
+
+
+def run_deploy(tmp_path, *, git_exit=0, merge_base_exit=0, pids=('100', '100'), active=True, ssh_command=None):
     """Run deploy.sh in a fake checkout with git/sudo/systemctl/sleep/journalctl stubbed on PATH."""
     app = tmp_path / 'app'
     (app / 'deploy').mkdir(parents=True)
@@ -31,7 +34,7 @@ def run_deploy(tmp_path, *, git_exit=0, pids=('100', '100'), active=True):
 
     bin_dir = tmp_path / 'bin'
     bin_dir.mkdir()
-    write_stub(bin_dir, 'git', f'echo "git $*" >> "$CALLS"\nexit {git_exit}\n')
+    write_stub(bin_dir, 'git', f'echo "git $*" >> "$CALLS"\n[ "$1" = merge-base ] && exit {merge_base_exit}\nexit {git_exit}\n')
     write_stub(bin_dir, 'sudo', 'echo "sudo $*" >> "$CALLS"\n')
     write_stub(bin_dir, 'sleep', 'true\n')
     write_stub(bin_dir, 'journalctl', 'echo "journal for $*"\n')
@@ -53,6 +56,9 @@ esac
         'CALLS': str(calls),
         'PID_READS': str(tmp_path / 'pid_reads'),
     }
+    env.pop('SSH_ORIGINAL_COMMAND', None)
+    if ssh_command is not None:
+        env['SSH_ORIGINAL_COMMAND'] = ssh_command
     result = subprocess.run(
         ['bash', str(app / 'deploy' / 'deploy.sh')],
         env=env, capture_output=True, text=True, cwd=tmp_path,
@@ -97,3 +103,30 @@ def test_service_without_main_process_fails_deploy(tmp_path):
     result, _ = run_deploy(tmp_path, pids=('0', '0'))
 
     assert result.returncode == 1
+
+
+def test_ci_deploy_checks_out_the_tested_commit(tmp_path):
+    result, calls = run_deploy(tmp_path, ssh_command=SHA)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert calls[:3] == [
+        'git fetch origin',
+        f'git merge-base --is-ancestor {SHA} origin/Main',
+        f'git merge --ff-only {SHA}',
+    ]
+    assert 'sudo systemctl restart craigbot-celery craigbot' in calls
+
+
+def test_ci_deploy_refuses_commit_not_on_main(tmp_path):
+    result, calls = run_deploy(tmp_path, ssh_command=SHA, merge_base_exit=1)
+
+    assert result.returncode != 0
+    assert not any(call.startswith(('git merge --ff-only', 'sudo')) for call in calls)
+
+
+@pytest.mark.parametrize('ssh_command', ['rm -rf /', 'abc123', SHA + '; reboot'])
+def test_ci_deploy_refuses_anything_but_a_sha(tmp_path, ssh_command):
+    result, calls = run_deploy(tmp_path, ssh_command=ssh_command)
+
+    assert result.returncode != 0
+    assert calls == []
