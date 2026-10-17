@@ -2,7 +2,6 @@ import asyncio
 import datetime
 import glob
 import os
-import time
 from typing import Optional, Union
 
 import discord
@@ -17,11 +16,10 @@ import audio.player as player
 import utils.embedded_messages as embedded_messages
 from audio.audio import (ensure_youtube_reference,
                          extract_youtube_playlist_reference)
-from audio.tasks import download, equalise_loudness
 from audio.ytdl_source import YTDLSource
 from database.audio import Favourite, Guild, Queue, Song
 
-time = datetime.time(hour=20, minute=12, tzinfo=pytz.timezone('Australia/Sydney'))
+DELETE_OLD_FILES_TIME = datetime.time(hour=20, minute=12, tzinfo=pytz.timezone('Australia/Sydney'))
 
 
 class AudioCog(commands.Cog, name='Audio'):
@@ -96,7 +94,7 @@ class AudioCog(commands.Cog, name='Audio'):
                 await self.bot.change_presence(activity=None)
             self.current_status = new_status
 
-    @tasks.loop(time=time)
+    @tasks.loop(time=DELETE_OLD_FILES_TIME)
     async def delete_old_files(self):
         """
         Asynchronously deletes files associated with Song records that were downloaded but not played in the last two months.
@@ -187,7 +185,7 @@ class AudioCog(commands.Cog, name='Audio'):
             result = await session.execute(statement)
             favourite = result.scalar()
             if not favourite:
-                await ctx.send(f'Favourite not found.')
+                await ctx.send('Favourite not found.')
                 return
             song = favourite.song
 

@@ -22,12 +22,12 @@ class CogsCog(commands.Cog, name='Cogs'):
             return
 
         if len(cogs) == 0:
-            await ctx.send(f'Missing cog name.')
+            await ctx.send('Missing cog name.')
             return
         if len(cogs) == 1 and cogs[0] == '*':
             cogs = all_files
         if any(cog not in all_files for cog in cogs):
-            await ctx.send(f'Unkown cog(s)')
+            await ctx.send('Unkown cog(s)')
             return
         
         for cog in cogs:
@@ -40,7 +40,7 @@ class CogsCog(commands.Cog, name='Cogs'):
                     await ctx.send(f'Failed to load `{cog}`.\n{e}')
             elif command == "unload":
                 if cog == 'cogs.cogs':
-                    await ctx.send(f'Don\'t be stupid.')
+                    await ctx.send('Don\'t be stupid.')
                     return
                 try:
                     await self.bot.unload_extension(cog)

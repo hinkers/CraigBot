@@ -2,12 +2,11 @@ import os
 from datetime import datetime
 
 from celery import Celery
-from sqlalchemy import select
 from sqlalchemy.orm import sessionmaker
 
 import audio.converter as converter
 from audio.ytdl_source import YTDLSource
-from database.audio import Guild, Song
+from database.audio import Song
 from database.database import get_engine
 
 debug = False
@@ -46,14 +45,7 @@ def download(song_id: int):
         song.is_downloaded = YTDLSource.download(song)
 
         if song.is_downloaded:
-            
             song.date_downloaded = datetime.now()
-
-            statement = select(Guild).where(Guild.now_playing_song_id == song.id)
-            result = session.execute(statement)
-            now_playing = result.scalar()
-            
-            # equalise_loudness.delay(song.id, swap_now=now_playing is None)
 
         song.has_download_task = False
         session.commit()
