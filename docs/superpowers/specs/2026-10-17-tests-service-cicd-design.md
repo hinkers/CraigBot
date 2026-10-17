@@ -157,6 +157,37 @@ No coverage threshold is enforced.
 - Failure notification: GitHub's default workflow-failure email. Existing
   `last_error.txt` → owner DM behaviour is unchanged.
 
+## Amendments from planning
+
+Found while reading the code for the implementation plan. These override the sections above.
+
+- **`Restart=always`, not `on-failure`.** `!kill`/`!restart` call `bot.close()`, and `app.py`
+  catches startup exceptions; both exit with status 0, so `on-failure` would leave the bot down.
+- **yt-dlp stays current.** `pip-review --auto` was what kept yt-dlp updated against YouTube changes.
+  Pinned installs would let it go stale, so `craigbot-celery.service` runs
+  `pip install --upgrade yt-dlp` as a non-fatal `ExecStartPre`.
+- **Health check uses a stable PID, not just `is-active`.** Under `Restart=always` a crash-looping
+  unit flickers back to "active". `deploy.sh` requires the same non-zero `MainPID` ~5s and ~20s
+  after the restart.
+- **Forced-command deploy key.** The deploy key's `authorized_keys` entry is restricted to
+  `command="<checkout>/deploy/deploy.sh"`, so CI passes no remote command and the key can do nothing
+  else. The `DEPLOY_PATH` secret is dropped.
+- **`deploy/install-services.sh`** templates the units (`__USER__`, `__APP_DIR__`), installs a
+  `visudo`-validated sudoers rule for exactly `/usr/bin/systemctl restart craigbot-celery craigbot`,
+  and adds the user to `systemd-journal` so `deploy.sh` can print logs without sudo.
+- **`deploy.sh` re-executes itself after `git pull`** so the rest of a deploy runs the freshly pulled
+  script.
+- **The local test Postgres is on port 5433** (to avoid clashing with a dev Postgres on 5432).
+  `conftest.py` defaults to it when `DATABASE_URL` is unset.
+- **Production-DB guard.** Test setup runs `drop_all`, so tests refuse any database whose name
+  doesn't contain `test`. In CI (`CI` env set), an unreachable DB fails instead of skipping.
+- **The audio cog starts its background tasks in `cog_load`** instead of using `bot.loop` in
+  `__init__` (not usable before login in discord.py 2), so cogs can be loaded in tests.
+- **Extra bugs to fix in scope** (one-liners, surfaced by tests): playlist links with params after
+  `list=`; `tag list` never saying "No tags available."; `IndexError` in the fun cog on "am i".
+- **No `ffmpeg` in CI.** Nothing that is imported needs it.
+- **CI also runs `shellcheck deploy/*.sh`.**
+
 ## Rollout order
 
 1. Land testability refactors, tests, lint config, workflow, `deploy/` files on a
