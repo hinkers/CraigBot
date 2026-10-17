@@ -35,7 +35,8 @@ class FunCog(commands.Cog, name='Fun'):
             if 'im' in words and len(words[words.index('im') + 1:]) <= 3 and len(words[words.index('im') + 1:]) > 0:
                 return await message.channel.send('Hi, ' + ' '.join(words[words.index('im') + 1:]) + ' i\'m <@884378283268014091>')
             if 'i' in words and 'am' in words:
-                if words[words.index('i') + 1] == 'am' and len(words[words.index('am') + 1:]) <= 3 and len(words[words.index('am') + 1:]) > 0:
+                after_i = words.index('i') + 1
+                if after_i < len(words) and words[after_i] == 'am' and len(words[words.index('am') + 1:]) <= 3 and len(words[words.index('am') + 1:]) > 0:
                     return await message.channel.send('Hi, ' + ' '.join(words[words.index('am') + 1:]) + ' i\'m <@884378283268014091>')
 
             ligmas = [
