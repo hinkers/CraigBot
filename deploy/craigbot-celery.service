@@ -8,7 +8,7 @@ Type=simple
 User=__USER__
 WorkingDirectory=__APP_DIR__
 Environment=PYTHONUNBUFFERED=1
-# YouTube changes often, so keep yt-dlp current on every start like run.sh's pip-review did (failure is non-fatal)
+# YouTube changes often, so keep yt-dlp current on every start like the old run.sh's pip-review did (failure is non-fatal)
 ExecStartPre=-__APP_DIR__/venv/bin/pip install --quiet --disable-pip-version-check --upgrade yt-dlp
 ExecStart=__APP_DIR__/venv/bin/celery -A audio.tasks worker --concurrency=1
 Restart=always
