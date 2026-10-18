@@ -30,13 +30,13 @@ def ensure_youtube_reference(query: str) -> str:
     if reference is None:
         search_results = YoutubeSearch(query, max_results=1).to_dict()
         if len(search_results) == 0:
-            yt_dlp.utils.DownloadError('No results found.')
+            raise yt_dlp.utils.DownloadError('No results found.')
         reference = search_results[0]['id']
     return reference
 
 
 def extract_youtube_playlist_reference(link: str) -> str:
-    playlist_pattern = r'^(?:https?:\/\/)?(?:www\.)?youtube\.com.*?\?.*?list=([\w-]+)$'
+    playlist_pattern = r'^(?:https?:\/\/)?(?:www\.)?youtube\.com.*?\?.*?list=([\w-]+)'
     match = re.match(playlist_pattern, link)
     if match:
         return match.group(1)

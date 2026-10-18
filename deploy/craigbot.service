@@ -1,0 +1,17 @@
+[Unit]
+Description=CraigBot Discord bot
+Wants=network-online.target craigbot-celery.service
+After=network-online.target postgresql.service redis-server.service craigbot-celery.service
+
+[Service]
+Type=simple
+User=__USER__
+WorkingDirectory=__APP_DIR__
+Environment=PYTHONUNBUFFERED=1
+ExecStart=__APP_DIR__/venv/bin/python app.py
+# Always restart: !kill/!restart and app.py's error handler both exit with status 0
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

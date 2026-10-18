@@ -1,6 +1,6 @@
 from sqlalchemy import BigInteger, Column, Integer, String
 
-from database.database import Base, get_engine
+from database.database import Base
 
 
 class Tag(Base):

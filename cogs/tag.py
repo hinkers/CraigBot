@@ -79,10 +79,10 @@ class TagCog(commands.Cog):
         async with self.bot.session as session:
             statement = select(Tag).where(Tag.guild_id == ctx.guild.id)
             result = await session.execute(statement)
-            tags = result.scalars()
+            tags = result.scalars().all()
 
             if tags:
-                descriptions = [f'- {t.name}' for t in tags.all()]
+                descriptions = [f'- {t.name}' for t in tags]
                 await ctx.send('```All tags:\n' + '\n'.join(descriptions) + '```')
             else:
                 await ctx.send('No tags available.')

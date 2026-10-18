@@ -1,11 +1,9 @@
 from datetime import datetime
-from math import floor
 from random import SystemRandom
 
 import discord
 from discord import Colour, Embed
 
-from audio.ytdl_source import YTDLSource
 from quotes import ferengi_rules_of_acquisition
 
 random = SystemRandom()
